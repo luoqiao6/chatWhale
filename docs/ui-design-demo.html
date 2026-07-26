@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="deep-ocean">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>chatWhale - UI Design Demo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --radius-sm: 6px;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+    --sidebar-width: 280px;
+    --header-height: 52px;
+  }
+
+  /* ===== Theme: 霜白 (Frost) - 最浅 ===== */
+  [data-theme="frost"] {
+    --bg-primary: #f2f4f8;
+    --bg-sidebar: #eaecf2;
+    --bg-card: #ffffff;
+    --bg-input: #ffffff;
+    --bg-hover: #e4e7ee;
+    --bg-code: #edf0f5;
+    --bg-thinking: #f6f7fa;
+    --bg-tool: #f6f7fa;
+    --border: #d6dae3;
+    --border-active: #a8aec0;
+    --text-primary: #1e2233;
+    --text-secondary: #5a6078;
+    --text-muted: #8e94a8;
+    --accent: #5068c8;
+    --accent-dim: #3c50a0;
+    --accent-bg: rgba(80, 104, 200, 0.08);
+    --user-bubble: #e8ecf6;
+    --user-border: #cdd3e8;
+    --thinking-color: #6b5ea0;
+    --thinking-bg: rgba(107, 94, 160, 0.06);
+    --thinking-border: rgba(107, 94, 160, 0.15);
+    --tool-color: #4070b8;
+    --tool-bg: rgba(64, 112, 184, 0.06);
+    --tool-border: rgba(64, 112, 184, 0.15);
+    --code-border: #d6dae3;
+    --scrollbar-thumb: #cdd1db;
+    --scrollbar-thumb-hover: #a8aec0;
+  }
+
+  /* ===== Theme: 晨露 (Morning Dew) - 较浅 ===== */
+  [data-theme="morning-dew"] {
+    --bg-primary: #ece7de;
+    --bg-sidebar: #e4dfd6;
+    --bg-card: #f8f4ee;
+    --bg-input: #f8f4ee;
+    --bg-hover: #ddd8cf;
+    --bg-code: #e8e3da;
+    --bg-thinking: #f2eee8;
+    --bg-tool: #f2eee8;
+    --border: #d0cbc2;
+    --border-active: #a8a39a;
+    --text-primary: #2c2a24;
+    --text-secondary: #6b6760;
+    --text-muted: #9b968c;
+    --accent: #2d9b8e;
+    --accent-dim: #1f7a6f;
+    --accent-bg: rgba(45, 155, 142, 0.08);
+    --user-bubble: #e2e8e0;
+    --user-border: #c8d4cc;
+    --thinking-color: #8b7840;
+    --thinking-bg: rgba(139, 120, 64, 0.06);
+    --thinking-border: rgba(139, 120, 64, 0.15);
+    --tool-color: #4b72cc;
+    --tool-bg: rgba(75, 114, 204, 0.06);
+    --tool-border: rgba(75, 114, 204, 0.15);
+    --code-border: #d0cbc2;
+    --scrollbar-thumb: #c8c3ba;
+    --scrollbar-thumb-hover: #a8a39a;
+  }
+
+  /* ===== Theme: 极光 (Aurora) - 不深不浅 ===== */
+  [data-theme="aurora"] {
+    --bg-primary: #1a5838;
+    --bg-sidebar: #125030;
+    --bg-card: #48b078;
+    --bg-input: #48b078;
+    --bg-hover: #105028;
+    --bg-code: #1c6040;
+    --bg-thinking: #206040;
+    --bg-tool: #206040;
+    --border: #38a868;
+    --border-active: #58c880;
+    --text-primary: #fcfffc;
+    --text-secondary: #dce4de;
+    --text-muted: #acbcb0;
+    --accent: #74fcc0;
+    --accent-dim: #58e8a8;
+    --accent-bg: rgba(116, 252, 192, 0.16);
+    --user-bubble: #48b078;
+    --user-border: #60c888;
+    --thinking-color: #e0f070;
+    --thinking-bg: rgba(224, 240, 112, 0.14);
+    --thinking-border: rgba(224, 240, 112, 0.28);
+    --tool-color: #90d0fc;
+    --tool-bg: rgba(144, 208, 252, 0.14);
+    --tool-border: rgba(144, 208, 252, 0.28);
+    --code-border: #38a868;
+    --scrollbar-thumb: #105028;
+    --scrollbar-thumb-hover: #58c880;
+  }
+
+  /* ===== Theme: 薄暮 (Dusk) - 较深 ===== */
+  [data-theme="dusk"] {
+    --bg-primary: #2a2630;
+    --bg-sidebar: #221e28;
+    --bg-card: #322e38;
+    --bg-input: #36323c;
+    --bg-hover: #3a3640;
+    --bg-code: #242028;
+    --bg-thinking: #2c2832;
+    --bg-tool: #2e2a34;
+    --border: #3a3640;
+    --border-active: #545058;
+    --text-primary: #e0dce4;
+    --text-secondary: #9894a0;
+    --text-muted: #6e6a74;
+    --accent: #d4745c;
+    --accent-dim: #b85a44;
+    --accent-bg: rgba(212, 116, 92, 0.08);
+    --user-bubble: #322e3a;
+    --user-border: #484458;
+    --thinking-color: #b09860;
+    --thinking-bg: rgba(176, 152, 96, 0.08);
+    --thinking-border: rgba(176, 152, 96, 0.2);
+    --tool-color: #8070b0;
+    --tool-bg: rgba(128, 112, 176, 0.08);
+    --tool-border: rgba(128, 112, 176, 0.2);
+    --code-border: #3a3640;
+    --scrollbar-thumb: #3a3640;
+    --scrollbar-thumb-hover: #545058;
+  }
+
+  /* ===== Theme: 深海 (Deep Ocean) - 最深 ===== */
+  [data-theme="deep-ocean"] {
+    --bg-primary: #080d18;
+    --bg-sidebar: #050a14;
+    --bg-card: #0e1322;
+    --bg-input: #121828;
+    --bg-hover: #161e32;
+    --bg-code: #080c16;
+    --bg-thinking: #0c1020;
+    --bg-tool: #0e1222;
+    --border: #161e32;
+    --border-active: #243250;
+    --text-primary: #dde2ee;
+    --text-secondary: #8892aa;
+    --text-muted: #586080;
+    --accent: #4fc3b4;
+    --accent-dim: #3a8f84;
+    --accent-bg: rgba(79, 195, 180, 0.08);
+    --user-bubble: #16203a;
+    --user-border: #243258;
+    --thinking-color: #b89b5e;
+    --thinking-bg: rgba(184, 155, 94, 0.08);
+    --thinking-border: rgba(184, 155, 94, 0.2);
+    --tool-color: #6b9fff;
+    --tool-bg: rgba(107, 159, 255, 0.08);
+    --tool-border: rgba(107, 159, 255, 0.2);
+    --code-border: #1e2840;
+    --scrollbar-thumb: #161e32;
+    --scrollbar-thumb-hover: #243250;
+  }
+
+  html, body { height: 100%; font-family: var(--font-sans); background: var(--bg-primary); color: var(--text-primary); overflow: hidden; }
+
+  .app { display: flex; height: 100vh; }
+
+  /* Sidebar */
+  .sidebar {
+    width: var(--sidebar-width); min-width: var(--sidebar-width);
+    background: var(--bg-sidebar); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; user-select: none;
+  }
+  .sidebar-brand {
+    height: var(--header-height); padding: 0 20px; display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-brand-icon {
+    width: 32px; height: 32px; border-radius: var(--radius);
+    background: linear-gradient(135deg, #4fc3b4 0%, #2e8b80 100%);
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .sidebar-brand-text { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+  .sidebar-brand-text span { color: var(--accent); }
+
+  .sidebar-actions { padding: 12px 16px; }
+  .btn-new-chat {
+    width: 100%; padding: 9px 14px; border-radius: var(--radius);
+    border: 1px dashed var(--border); background: transparent;
+    color: var(--text-secondary); font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; font-family: var(--font-sans);
+    transition: all 0.15s;
+  }
+  .btn-new-chat:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-active); }
+  .btn-new-chat svg { width: 16px; height: 16px; opacity: 0.6; }
+
+  .sidebar-conversations { flex: 1; overflow-y: auto; padding: 4px 12px; }
+  .sidebar-section-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--text-muted); padding: 8px 8px 4px;
+  }
+  .conv-item {
+    padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer;
+    font-size: 13px; color: var(--text-secondary); margin-bottom: 2px;
+    display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden;
+    transition: background 0.12s;
+  }
+  .conv-item:hover { background: var(--bg-hover); }
+  .conv-item.active { background: var(--accent-bg); color: var(--accent); }
+  .conv-item-icon { opacity: 0.4; flex-shrink: 0; }
+  .conv-item.active .conv-item-icon { opacity: 1; }
+  .conv-item-text { overflow: hidden; text-overflow: ellipsis; }
+
+  .sidebar-footer {
+    padding: 12px 16px; border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  /* Theme Switcher */
+  .theme-options {
+    display: flex; gap: 4px; margin-bottom: 10px;
+  }
+  .theme-option {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 6px 4px 5px; border-radius: var(--radius-sm); cursor: pointer;
+    border: 1px solid transparent; font-size: 10px; color: var(--text-muted);
+    transition: all 0.12s; flex: 1; text-align: center;
+  }
+  .theme-option:hover { background: var(--bg-hover); }
+  .theme-option.active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+  .theme-swatch {
+    width: 24px; height: 16px; border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;
+  }
+
+  .model-selector {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border-radius: var(--radius-sm); background: var(--bg-card); cursor: pointer;
+    font-size: 13px;
+  }
+  .model-selector:hover { background: var(--bg-hover); }
+  .model-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .model-info { flex: 1; }
+  .model-name { font-size: 13px; font-weight: 500; }
+  .model-status { font-size: 11px; color: var(--text-muted); }
+  .model-chevron { color: var(--text-muted); font-size: 11px; }
+
+  /* Main */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  .header {
+    height: var(--header-height); min-height: var(--header-height);
+    border-bottom: 1px solid var(--border); display: flex; align-items: center;
+    padding: 0 24px; gap: 12px;
+  }
+  .header-title { font-size: 14px; font-weight: 600; flex: 1; }
+  .header-model-badge {
+    font-size: 11px; padding: 3px 10px; border-radius: 100px;
+    background: var(--accent-bg); color: var(--accent); font-weight: 500;
+  }
+  .header-actions { display: flex; gap: 4px; }
+  .header-btn {
+    width: 32px; height: 32px; border-radius: var(--radius-sm); border: none;
+    background: transparent; color: var(--text-secondary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .header-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  /* Chat */
+  .chat-area { flex: 1; overflow-y: auto; padding: 24px 0; }
+  .chat-inner { max-width: 780px; margin: 0 auto; padding: 0 24px; display: flex; flex-direction: column; gap: 24px; }
+
+  .msg-user { display: flex; justify-content: flex-end; }
+  .msg-user .msg-bubble {
+    background: var(--user-bubble); border: 1px solid var(--user-border);
+    border-radius: var(--radius-lg); padding: 12px 16px; max-width: 80%;
+    font-size: 14px; line-height: 1.6;
+  }
+  .msg-assistant { display: flex; flex-direction: column; gap: 10px; }
+  .msg-role { font-size: 12px; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .msg-role-icon { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); opacity: 0.8; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+  .msg-content { font-size: 14px; line-height: 1.7; color: var(--text-primary); }
+  .msg-content p { margin-bottom: 10px; }
+  .msg-content p:last-child { margin-bottom: 0; }
+  .msg-content strong { color: var(--text-primary); font-weight: 600; }
+  .msg-content ul, .msg-content ol { padding-left: 20px; margin-bottom: 10px; }
+  .msg-content li { margin-bottom: 4px; }
+  .msg-content code:not(pre code) {
+    background: var(--bg-code); padding: 2px 6px; border-radius: 4px;
+    font-family: var(--font-mono); font-size: 13px; color: var(--accent);
+  }
+  .msg-content pre {
+    background: var(--bg-code); border: 1px solid var(--code-border);
+    border-radius: var(--radius); padding: 16px; overflow-x: auto;
+    margin-bottom: 10px; position: relative;
+  }
+  .msg-content pre code {
+    font-family: var(--font-mono); font-size: 13px; line-height: 1.6; color: #d6dae5;
+  }
+  .code-lang-tag {
+    position: absolute; top: 8px; right: 12px;
+    font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);
+  }
+  .code-copy-btn {
+    position: absolute; top: 6px; right: 60px;
+    width: 28px; height: 28px; border-radius: 4px; border: none;
+    background: var(--bg-hover); color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+  .code-copy-btn:hover { background: var(--border-active); color: var(--text-primary); }
+
+  /* Thinking Panel */
+  .thinking-panel {
+    border: 1px solid var(--thinking-border); border-radius: var(--radius);
+    background: var(--bg-thinking); overflow: hidden;
+  }
+  .thinking-header {
+    padding: 8px 14px; display: flex; align-items: center; gap: 8px;
+    cursor: pointer; font-size: 12px; color: var(--thinking-color);
+  }
+  .thinking-header:hover { background: var(--thinking-bg); }
+  .thinking-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--thinking-color); }
+  .thinking-label { font-weight: 600; flex: 1; }
+  .thinking-chevron { transition: transform 0.2s; font-size: 10px; }
+  .thinking-panel.open .thinking-chevron { transform: rotate(90deg); }
+  .thinking-body {
+    display: none; padding: 10px 14px 12px; border-top: 1px solid var(--thinking-border);
+    font-size: 13px; color: var(--thinking-color); line-height: 1.6; font-style: italic; opacity: 0.85;
+  }
+  .thinking-panel.open .thinking-body { display: block; }
+
+  /* Tool Call Card */
+  .tool-call {
+    border: 1px solid var(--tool-border); border-radius: var(--radius);
+    background: var(--bg-tool); overflow: hidden;
+  }
+  .tool-call-header {
+    padding: 8px 14px; display: flex; align-items: center; gap: 8px;
+    cursor: pointer; font-size: 12px; color: var(--tool-color);
+  }
+  .tool-call-header:hover { background: var(--tool-bg); }
+  .tool-call-icon { width: 16px; height: 16px; opacity: 0.7; }
+  .tool-fn-name { font-weight: 600; font-family: var(--font-mono); }
+  .tool-chevron { transition: transform 0.2s; font-size: 10px; margin-left: auto; }
+  .tool-call.open .tool-chevron { transform: rotate(90deg); }
+  .tool-call-body { display: none; padding: 10px 14px 12px; border-top: 1px solid var(--tool-border); }
+  .tool-call.open .tool-call-body { display: block; }
+  .tool-section-label { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .tool-json {
+    font-family: var(--font-mono); font-size: 12px; background: rgba(0,0,0,0.15);
+    border-radius: var(--radius-sm); padding: 10px 14px; overflow-x: auto; line-height: 1.6;
+    color: var(--text-secondary);
+  }
+  .tool-result {
+    margin-top: 8px; padding: 8px 12px; border-radius: var(--radius-sm);
+    background: var(--accent-bg); font-size: 13px; color: var(--accent);
+    border: 1px solid rgba(79, 195, 180, 0.15);
+  }
+
+  /* Table */
+  .msg-content table {
+    border-collapse: collapse; width: 100%; margin-bottom: 10px;
+    font-size: 13px; border-radius: var(--radius-sm); overflow: hidden;
+  }
+  .msg-content th {
+    background: var(--bg-code); padding: 8px 14px; text-align: left;
+    font-weight: 600; border-bottom: 1px solid var(--code-border);
+  }
+  .msg-content td {
+    padding: 8px 14px; border-bottom: 1px solid var(--border);
+  }
+  .msg-content tr:last-child td { border-bottom: none; }
+
+  /* Input */
+  .input-area { border-top: 1px solid var(--border); padding: 16px 24px 20px; }
+  .input-inner { max-width: 780px; margin: 0 auto; }
+  .input-params {
+    display: flex; gap: 12px; margin-bottom: 10px; align-items: center; flex-wrap: wrap;
+  }
+  .param-group {
+    display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted);
+  }
+  .param-group label { white-space: nowrap; }
+  .param-group select, .param-group input {
+    background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-primary); padding: 5px 8px; font-size: 12px; font-family: var(--font-mono);
+    outline: none;
+  }
+  .param-group select:focus, .param-group input:focus { border-color: var(--border-active); }
+  .param-group input[type="number"] { width: 60px; }
+  .param-group input[type="range"] { width: 80px; }
+  .param-value { font-family: var(--font-mono); font-size: 11px; min-width: 30px; text-align: right; }
+  .input-row {
+    display: flex; gap: 10px; align-items: flex-end;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 8px 8px 8px 16px;
+    transition: border-color 0.15s;
+  }
+  .input-row:focus-within { border-color: var(--border-active); }
+  .input-textarea {
+    flex: 1; resize: none; border: none; background: transparent;
+    color: var(--text-primary); font-size: 14px; line-height: 1.6;
+    font-family: var(--font-sans); outline: none; min-height: 24px; max-height: 200px;
+    padding: 4px 0; overflow-y: auto; height: auto;
+  }
+  .input-textarea::placeholder { color: var(--text-muted); }
+  .input-actions { display: flex; gap: 6px; align-items: flex-end; padding-bottom: 2px; }
+  .btn-input {
+    width: 32px; height: 32px; border-radius: var(--radius-sm); border: none;
+    background: transparent; color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-input:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .btn-send {
+    width: 32px; height: 32px; border-radius: var(--radius-sm); border: none;
+    background: var(--accent); color: var(--bg-primary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-send:hover { opacity: 0.85; }
+  .input-hint {
+    font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 8px;
+  }
+
+  .divider { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+  .divider-line { flex: 1; height: 1px; background: var(--border); }
+  .divider-text { font-size: 11px; color: var(--text-muted); }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+  /* Design Notes Panel */
+  .design-notes { position: fixed; bottom: 20px; right: 20px; z-index: 100; }
+  .notes-toggle {
+    width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .notes-toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .notes-panel {
+    display: none; position: absolute; bottom: 48px; right: 0;
+    width: 320px; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 16px 18px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4); font-size: 12px;
+    line-height: 1.6; color: var(--text-secondary);
+  }
+  .notes-panel.visible { display: block; }
+  .notes-panel h3 { color: var(--accent); margin-bottom: 8px; font-size: 13px; }
+  .notes-panel ul { padding-left: 16px; }
+  .notes-panel li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon">🐋</div>
+      <div class="sidebar-brand-text">chat<span>Whale</span></div>
+    </div>
+    <div class="sidebar-actions">
+      <button class="btn-new-chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新建对话
+      </button>
+    </div>
+    <div class="sidebar-conversations">
+      <div class="sidebar-section-title">今天</div>
+      <div class="conv-item active">
+        <span class="conv-item-icon">💬</span>
+        <span class="conv-item-text">杭州天气查询与代码示例</span>
+      </div>
+      <div class="conv-item">
+        <span class="conv-item-icon">💬</span>
+        <span class="conv-item-text">Python 数据分析脚本优化</span>
+      </div>
+      <div class="sidebar-section-title">本周</div>
+      <div class="conv-item">
+        <span class="conv-item-icon">💬</span>
+        <span class="conv-item-text">API 接口设计方案讨论</span>
+      </div>
+      <div class="conv-item">
+        <span class="conv-item-icon">💬</span>
+        <span class="conv-item-text">数据库查询性能调优</span>
+      </div>
+      <div class="sidebar-section-title">更早</div>
+      <div class="conv-item">
+        <span class="conv-item-icon">💬</span>
+        <span class="conv-item-text">Rust 异步编程入门咨询</span>
+      </div>
+      <div class="conv-item">
+        <span class="conv-item-icon">💬</span>
+        <span class="conv-item-text">Kubernetes 集群部署问题</span>
+      </div>
+      <div class="conv-item">
+        <span class="conv-item-icon">💬</span>
+        <span class="conv-item-text">机器学习模型评估指标</span>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="theme-section">
+        <div class="sidebar-section-title" style="padding:0 2px 6px;">界面主题</div>
+        <div class="theme-options">
+          <div class="theme-option" data-theme="frost" onclick="switchTheme('frost', this)" title="霜白 · 最浅">
+            <span class="theme-swatch" style="background:linear-gradient(135deg,#5068c8,#f2f4f8);border:1px solid #ccc;"></span>
+            <span class="theme-label">霜白</span>
+          </div>
+          <div class="theme-option" data-theme="morning-dew" onclick="switchTheme('morning-dew', this)" title="晨露 · 较浅">
+            <span class="theme-swatch" style="background:linear-gradient(135deg,#2d9b8e,#ece7de);border:1px solid #ccc;"></span>
+            <span class="theme-label">晨露</span>
+          </div>
+          <div class="theme-option" data-theme="aurora" onclick="switchTheme('aurora', this)" title="极光 · 不深不浅">
+            <span class="theme-swatch" style="background:linear-gradient(135deg,#74fcc0,#1a5838);"></span>
+            <span class="theme-label">极光</span>
+          </div>
+          <div class="theme-option" data-theme="dusk" onclick="switchTheme('dusk', this)" title="薄暮 · 较深">
+            <span class="theme-swatch" style="background:linear-gradient(135deg,#d4745c,#2a2630);"></span>
+            <span class="theme-label">薄暮</span>
+          </div>
+          <div class="theme-option active" data-theme="deep-ocean" onclick="switchTheme('deep-ocean', this)" title="深海 · 最深">
+            <span class="theme-swatch" style="background:linear-gradient(135deg,#4fc3b4,#080d18);"></span>
+            <span class="theme-label">深海</span>
+          </div>
+        </div>
+      </div>
+      <div class="model-selector" title="点击切换模型">
+        <span class="model-dot"></span>
+        <div class="model-info">
+          <div class="model-name">deepseek-v4-pro</div>
+          <div class="model-status">本地 · 运行中</div>
+        </div>
+        <span class="model-chevron">▾</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="header">
+      <div class="header-title">杭州天气查询与代码示例</div>
+      <span class="header-model-badge">deepseek-v4-pro</span>
+      <div class="header-actions">
+        <button class="header-btn" title="分享对话">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+        <button class="header-btn" title="导出对话">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="chat-area">
+      <div class="chat-inner">
+
+        <!-- User msg -->
+        <div class="msg msg-user">
+          <div class="msg-bubble">帮我查一下明天杭州的天气怎么样？</div>
+        </div>
+
+        <!-- Assistant: Thinking + get_date -->
+        <div class="msg msg-assistant">
+          <div class="msg-role">
+            <span class="msg-role-icon">🐋</span> chatWhale
+          </div>
+          <div class="thinking-panel open" id="thinking-1">
+            <div class="thinking-header" onclick="togglePanel('thinking-1')">
+              <span class="thinking-dot"></span>
+              <span class="thinking-label">深度思考</span>
+              <span style="font-size:11px;color:var(--text-muted)">3.2s</span>
+              <span class="thinking-chevron">▶</span>
+            </div>
+            <div class="thinking-body">
+              用户想知道明天杭州的天气。我需要先获取明天的日期，然后再调用天气查询工具。今天是 2026 年 7 月 26 日，所以明天是 7 月 27 日。先调用 get_date 确认一下日期，然后再调用 get_weather。
+            </div>
+          </div>
+          <div class="tool-call open" id="tool-1">
+            <div class="tool-call-header" onclick="togglePanel('tool-1')">
+              <svg class="tool-call-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              <span class="tool-fn-name">get_date</span>
+              <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">→ 完成</span>
+              <span class="tool-chevron">▶</span>
+            </div>
+            <div class="tool-call-body">
+              <div class="tool-section-label">调用参数</div>
+              <div class="tool-json">{}</div>
+              <div class="tool-section-label" style="margin-top:8px;">返回结果</div>
+              <div class="tool-result">2026-07-27</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Assistant: Thinking + get_weather -->
+        <div class="msg msg-assistant">
+          <div class="thinking-panel open" id="thinking-2">
+            <div class="thinking-header" onclick="togglePanel('thinking-2')">
+              <span class="thinking-dot"></span>
+              <span class="thinking-label">深度思考</span>
+              <span style="font-size:11px;color:var(--text-muted)">1.8s</span>
+              <span class="thinking-chevron">▶</span>
+            </div>
+            <div class="thinking-body">
+              确认明天是 2026-07-27。现在调用 get_weather 查询杭州明天的天气。需要传入 location="杭州" 和 date="2026-07-27"。
+            </div>
+          </div>
+          <div class="tool-call open" id="tool-2">
+            <div class="tool-call-header" onclick="togglePanel('tool-2')">
+              <svg class="tool-call-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              <span class="tool-fn-name">get_weather</span>
+              <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">→ 完成</span>
+              <span class="tool-chevron">▶</span>
+            </div>
+            <div class="tool-call-body">
+              <div class="tool-section-label">调用参数</div>
+              <div class="tool-json">{
+  "location": "杭州",
+  "date": "2026-07-27"
+}</div>
+              <div class="tool-section-label" style="margin-top:8px;">返回结果</div>
+              <div class="tool-result">多云转晴 28~36°C  东南风 3-4 级  湿度 65%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Assistant: Final answer with markdown -->
+        <div class="msg msg-assistant">
+          <div class="msg-role">
+            <span class="msg-role-icon">🐋</span> chatWhale
+          </div>
+          <div class="msg-content">
+            <p>这是<strong>杭州明天（7 月 27 日）</strong>的天气预报：</p>
+            <table>
+              <tr><th>项目</th><th>详情</th></tr>
+              <tr><td>🌤 天气</td><td>多云转晴</td></tr>
+              <tr><td>🌡 温度</td><td>28°C ~ 36°C</td></tr>
+              <tr><td>💨 风力</td><td>东南风 3-4 级</td></tr>
+              <tr><td>💧 湿度</td><td>65%</td></tr>
+            </table>
+            <p>几点小建议：</p>
+            <ul>
+              <li>白天温度偏高，出门记得做好防晒</li>
+              <li>午后可能有短暂对流，带把伞保险一些</li>
+              <li>湿度适中，体感会比较舒适</li>
+            </ul>
+            <p>需要我帮你查其他城市的天气吗？</p>
+          </div>
+        </div>
+
+        <!-- User msg 2 -->
+        <div class="msg msg-user">
+          <div class="msg-bubble">用 Python 写个调用天气 API 的示例代码，展示一下 chatWhale 的 Tool Calls 怎么用</div>
+        </div>
+
+        <!-- Assistant: Code block response -->
+        <div class="msg msg-assistant">
+          <div class="msg-role">
+            <span class="msg-role-icon">🐋</span> chatWhale
+          </div>
+          <div class="msg-content">
+            <p>好的，以下是一个完整的示例，演示如何通过 <code>chatWhale</code> 的 Tool Calls 功能让模型自动调用外部工具：</p>
+<pre><span class="code-lang-tag">python</span><button class="code-copy-btn" title="复制代码" onclick="copyCode(this)">📋</button><code><span style="color:#6b9fff;">import</span> os
+<span style="color:#6b9fff;">import</span> json
+<span style="color:#6b9fff;">from</span> openai <span style="color:#6b9fff;">import</span> OpenAI
+<span style="color:#6b9fff;">from</span> datetime <span style="color:#6b9fff;">import</span> datetime
+
+<span style="color:#6b9fff;">def</span> <span style="color:#4fc3b4;">get_weather</span>(location: str, date: str) -> str:
+    <span style="color:#8b90a5;">"""模拟天气查询"""</span>
+    <span style="color:#6b9fff;">return</span> <span class="code-string">f"</span><span class="code-string">{location} {date}: 多云 28~36°C"</span>
+
+TOOLS = [{
+    <span class="code-string">"type"</span>: <span class="code-string">"function"</span>,
+    <span class="code-string">"function"</span>: {
+        <span class="code-string">"name"</span>: <span class="code-string">"get_weather"</span>,
+        <span class="code-string">"description"</span>: <span class="code-string">"查询指定城市天气"</span>,
+        <span class="code-string">"parameters"</span>: {
+            <span class="code-string">"type"</span>: <span class="code-string">"object"</span>,
+            <span class="code-string">"properties"</span>: {
+                <span class="code-string">"location"</span>: {<span class="code-string">"type"</span>: <span class="code-string">"string"</span>},
+                <span class="code-string">"date"</span>: {<span class="code-string">"type"</span>: <span class="code-string">"string"</span>}
+            },
+            <span class="code-string">"required"</span>: [<span class="code-string">"location"</span>]
+        }
+    }
+}]
+
+client = OpenAI(
+    api_key=<span class="code-string">"your-api-key"</span>,
+    base_url=<span class="code-string">"http://localhost:8080/v1"</span>
+)
+
+messages = [{<span class="code-string">"role"</span>: <span class="code-string">"user"</span>, <span class="code-string">"content"</span>: <span class="code-string">"杭州明天天气？"</span>}]
+
+<span style="color:#6b9fff;">while</span> <span style="color:#4fc3b4;">True</span>:
+    resp = client.chat.completions.create(
+        model=<span class="code-string">"deepseek-v4-pro"</span>,
+        messages=messages,
+        tools=TOOLS,
+        extra_body={<span class="code-string">"thinking"</span>: {<span class="code-string">"type"</span>: <span class="code-string">"enabled"</span>}}
+    )
+    msg = resp.choices[0].message
+    messages.append(msg)
+    <span style="color:#6b9fff;">if</span> msg.tool_calls <span style="color:#6b9fff;">is</span> <span style="color:#6b9fff;">None</span>:
+        <span style="color:#6b9fff;">break</span>  <span style="color:#8b90a5;"># 模型给出最终答案</span>
+    <span style="color:#6b9fff;">for</span> tc <span style="color:#6b9fff;">in</span> msg.tool_calls:
+        args = json.loads(tc.function.arguments)
+        result = get_weather(**args)
+        messages.append({
+            <span class="code-string">"role"</span>: <span class="code-string">"tool"</span>,
+            <span class="code-string">"tool_call_id"</span>: tc.id,
+            <span class="code-string">"content"</span>: result
+        })
+
+<span style="color:#4fc3b4;">print</span>(msg.content)</code></pre>
+            <p>这段代码展示了 <strong>Tool Calls 的完整循环</strong>：模型决定调用哪个函数 → 用户侧执行 → 结果回传给模型 → 模型生成最终答案。思考模式下，<code>reasoning_content</code> 也会在每轮中正确回传。</p>
+          </div>
+        </div>
+
+        <div class="divider">
+          <div class="divider-line"></div>
+          <div class="divider-text">以上为示例对话</div>
+          <div class="divider-line"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+      <div class="input-inner">
+        <div class="input-params">
+          <div class="param-group">
+            <label>思考</label>
+            <select>
+              <option selected>enabled</option>
+              <option>disabled</option>
+            </select>
+          </div>
+          <div class="param-group">
+            <label>effort</label>
+            <select>
+              <option selected>high</option>
+              <option>max</option>
+            </select>
+          </div>
+          <div class="param-group">
+            <label>temperature</label>
+            <input type="range" min="0" max="2" step="0.1" value="1" oninput="this.nextElementSibling.textContent=this.value">
+            <span class="param-value">1.0</span>
+          </div>
+          <div class="param-group">
+            <label>max_tokens</label>
+            <input type="number" value="4096" min="1" max="65536">
+          </div>
+        </div>
+        <div class="input-row">
+          <textarea class="input-textarea" rows="1" placeholder="输入消息，Enter 发送，Shift+Enter 换行..."></textarea>
+          <div class="input-actions">
+            <button class="btn-input" title="附加文件">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <button class="btn-send" title="发送消息">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="input-hint">chatWhale 可能会产生不准确信息，请核实重要内容</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Design Notes -->
+<div class="design-notes">
+  <button class="notes-toggle" onclick="toggleNotes()" title="设计说明">?</button>
+  <div class="notes-panel" id="notes-panel">
+    <h3>UI 设计说明</h3>
+    <ul>
+      <li><strong>技术栈：</strong>Tauri v2 + Vue 3 + TypeScript</li>
+      <li><strong>布局：</strong>侧边栏 (280px) + 主内容区</li>
+      <li><strong>侧边栏：</strong>品牌标识 → 新建按钮 → 对话列表（按时间分组）→ 主题切换 → 模型选择器</li>
+      <li><strong>对话区核心组件：</strong></li>
+      <li style="list-style:none;padding-left:12px;">• 用户气泡（右对齐）</li>
+      <li style="list-style:none;padding-left:12px;">• Markdown 渲染</li>
+      <li style="list-style:none;padding-left:12px;">• 思考面板（可折叠）</li>
+      <li style="list-style:none;padding-left:12px;">• 工具调用卡片（可折叠）</li>
+      <li style="list-style:none;padding-left:12px;">• 代码块（带语言标签和复制按钮）</li>
+      <li style="list-style:none;padding-left:12px;">• 数据表格</li>
+      <li><strong>输入区：</strong>参数控制栏 + 输入框 + 发送/附件按钮</li>
+      <li><strong>主题：</strong>5 级亮度渐变 —— 霜白(最浅) → 晨露(较浅) → 极光(适中) → 薄暮(较深) → 深海(最深)</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+function togglePanel(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+function toggleNotes() {
+  document.getElementById('notes-panel').classList.toggle('visible');
+}
+function copyCode(btn) {
+  var pre = btn.parentElement;
+  var code = pre.querySelector('code').innerText;
+  navigator.clipboard.writeText(code).then(function() {
+    btn.textContent = '✅';
+    setTimeout(function() { btn.textContent = '📋'; }, 1500);
+  });
+}
+function switchTheme(themeName, el) {
+  document.documentElement.setAttribute('data-theme', themeName);
+  document.querySelectorAll('.theme-option').forEach(function(opt) {
+    opt.classList.remove('active');
+  });
+  el.classList.add('active');
+  try { localStorage.setItem('chatwhale-theme', themeName); } catch(e) {}
+}
+// Auto-grow textarea
+(function() {
+  var ta = document.querySelector('.input-textarea');
+  if (ta) {
+    ta.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+    });
+  }
+})();
+// Sync sidebar-footer and input-area border-top alignment
+(function() {
+  function syncBorders() {
+    var sf = document.querySelector('.sidebar-footer');
+    var ia = document.querySelector('.input-area');
+    if (!sf || !ia) return;
+    // Reset any previous inline height so natural sizes are measured
+    sf.style.minHeight = '';
+    ia.style.minHeight = '';
+    var h = Math.max(sf.offsetHeight, ia.offsetHeight);
+    sf.style.minHeight = h + 'px';
+    ia.style.minHeight = h + 'px';
+  }
+  window.addEventListener('load', syncBorders);
+  window.addEventListener('resize', syncBorders);
+})();
+(function() {
+  var saved = null;
+  try { saved = localStorage.getItem('chatwhale-theme'); } catch(e) {}
+  if (saved && document.querySelector('.theme-option[data-theme="' + saved + '"]')) {
+    document.documentElement.setAttribute('data-theme', saved);
+    document.querySelectorAll('.theme-option').forEach(function(opt) {
+      opt.classList.remove('active');
+    });
+    var active = document.querySelector('.theme-option[data-theme="' + saved + '"]');
+    if (active) active.classList.add('active');
+  }
+})();
+</script>
+</body>
+</html>
