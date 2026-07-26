@@ -49,7 +49,6 @@ function saveMessages() {
   if (!props.convId) return;
   const conv = getConversation(props.convId);
   if (conv) {
-    // Auto-title from first user message
     const firstUser = messages.value.find((m) => m.role === "user");
     const title = conv.title === "新对话" && firstUser
       ? (firstUser.content ?? "").slice(0, 30)
@@ -61,7 +60,61 @@ function saveMessages() {
   }
 }
 
-// Watch convId to load messages when switching conversations
+const shareDone = ref(false);
+
+function shareConversation() {
+  if (messages.value.length === 0) return;
+  let text = "";
+  for (const m of messages.value) {
+    if (m.role === "user") {
+      text += "\ud83d\udc64 \u7528\u6237:\n" + (m.content ?? "") + "\n\n";
+    } else if (m.role === "assistant") {
+      text += "\ud83d\udc0b chatWhale:\n" + (m.content ?? "") + "\n\n";
+    }
+  }
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.left = "-9999px";
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand("copy");
+    shareDone.value = true;
+    setTimeout(() => { shareDone.value = false; }, 2000);
+  } catch {
+    navigator.clipboard?.writeText(text).then(() => {
+      shareDone.value = true;
+      setTimeout(() => { shareDone.value = false; }, 2000);
+    });
+  }
+  document.body.removeChild(ta);
+}
+
+function exportConversation() {
+  if (messages.value.length === 0) return;
+  const conv = props.convId ? getConversation(props.convId) : null;
+  const title = conv?.title ?? "\u5bf9\u8bdd\u5bfc\u51fa";
+  let md = "# " + title + "\n\n> \u5bfc\u51fa\u65f6\u95f4: " + new Date().toLocaleString() + "\n\n---\n\n";
+  for (const m of messages.value) {
+    if (m.role === "user") {
+      md += "### \ud83d\udc64 \u7528\u6237\n\n" + (m.content ?? "") + "\n\n";
+    } else if (m.role === "assistant") {
+      if (m.reasoning_content) {
+        md += "> **\u6df1\u5ea6\u601d\u8003**\n> \n> " + (m.reasoning_content ?? "").replace(/\n/g, "\n> ") + "\n\n";
+      }
+      md += "### \ud83d\udc0b chatWhale\n\n" + (m.content ?? "") + "\n\n";
+    }
+  }
+  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "chatwhale-" + new Date().toISOString().slice(0, 10) + ".md";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 watch(
   () => props.convId,
   (newId) => {
@@ -83,7 +136,7 @@ function getApiConfig() {
 function buildMessages(): Message[] {
   const systemMsg: Message = {
     role: "system",
-    content: "你是一个有帮助的助手。",
+    content: "\u4f60\u662f\u4e00\u4e2a\u6709\u5e2e\u52a9\u7684\u52a9\u624b\u3002",
   };
   const filtered = messages.value.filter((m) => {
     if (m.role === "system") return false;
@@ -101,7 +154,7 @@ async function handleSend(params: SendParams) {
 
   const { baseUrl, apiKey } = getApiConfig();
   if (!apiKey) {
-    alert("请先在设置中配置 API Key");
+    alert("\u8bf7\u5148\u5728\u8bbe\u7f6e\u4e2d\u914d\u7f6e API Key");
     return;
   }
 
@@ -132,18 +185,18 @@ async function handleSend(params: SendParams) {
       body.thinking = { type: "disabled" };
     }
 
-    const resp = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+    const resp = await fetch(baseUrl.replace(/\/$/, "") + "/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: "Bearer " + apiKey,
       },
       body: JSON.stringify(body),
     });
 
     if (!resp.ok) {
       const errText = await resp.text();
-      messages.value[assistantIndex].content = `API 错误 (${resp.status}): ${errText}`;
+      messages.value[assistantIndex].content = "API \u9519\u8bef (" + resp.status + "): " + errText;
       isLoading.value = false;
       return;
     }
@@ -224,7 +277,7 @@ async function handleSend(params: SendParams) {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (!messages.value[assistantIndex].content) {
-      messages.value[assistantIndex].content = `连接失败: ${msg}`;
+      messages.value[assistantIndex].content = "\u8fde\u63a5\u5931\u8d25: " + msg;
     }
   } finally {
     isLoading.value = false;
@@ -245,8 +298,11 @@ watch(
         {{ convId ? (getConversation(convId)?.title ?? "对话中...") : "chatWhale" }}
       </div>
       <div class="header-actions">
-        <button class="header-btn" title="复制对话内容" @click="shareConversation">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <button class="header-btn" :class="{ copied: shareDone }" :title="shareDone ? '已复制！' : '复制对话内容'" @click="shareConversation">
+          <svg v-if="shareDone" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
           </svg>
@@ -299,6 +355,7 @@ watch(
   display: flex; align-items: center; justify-content: center;
 }
 .header-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.header-btn.copied { color: var(--accent); }
 
 .chat-area { flex: 1; overflow-y: auto; padding: 24px 0; }
 .chat-inner { max-width: 780px; margin: 0 auto; padding: 0 24px; display: flex; flex-direction: column; gap: 24px; }
