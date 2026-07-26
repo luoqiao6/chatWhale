@@ -43,7 +43,23 @@ onMounted(() => {
   } else {
     document.documentElement.setAttribute("data-theme", "deep-ocean");
   }
+  // Sync sidebar footer and input area border heights
+  syncBorders();
+  window.addEventListener("resize", syncBorders);
 });
+
+function syncBorders() {
+  const sf = document.querySelector(".sidebar-footer") as HTMLElement | null;
+  const ia = document.querySelector(".input-area") as HTMLElement | null;
+  if (!sf || !ia) return;
+  sf.style.minHeight = "";
+  ia.style.minHeight = "";
+  requestAnimationFrame(() => {
+    const h = Math.max(sf.offsetHeight, ia.offsetHeight);
+    sf.style.minHeight = h + "px";
+    ia.style.minHeight = h + "px";
+  });
+}
 </script>
 
 <template>

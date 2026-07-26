@@ -126,8 +126,8 @@ html, body, #app { height: 100%; font-family: var(--font-sans); background: var(
   --bg-code: #1c6040;
   --bg-thinking: #206040;
   --bg-tool: #206040;
-  --border: #38a868;
-  --border-active: #58c880;
+  --border: #217344;
+  --border-active: #2d9950;
   --text-primary: #fcfffc;
   --text-secondary: #dce4de;
   --text-muted: #acbcb0;
@@ -142,7 +142,7 @@ html, body, #app { height: 100%; font-family: var(--font-sans); background: var(
   --tool-color: #90d0fc;
   --tool-bg: rgba(144, 208, 252, 0.14);
   --tool-border: rgba(144, 208, 252, 0.28);
-  --code-border: #38a868;
+  --code-border: #217344;
   --code-text: #e0f0e0;
   --syn-keyword: #c0e878;
   --syn-string: #74fcc0;
