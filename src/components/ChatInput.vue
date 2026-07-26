@@ -3,6 +3,7 @@ import { ref } from "vue";
 
 defineProps<{
   isLoading: boolean;
+  model?: string;
 }>();
 
 interface SendParams {
@@ -17,11 +18,14 @@ const emit = defineEmits<{
   send: [params: SendParams];
 }>();
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const inputText = ref("");
+const attachedFile = ref<{ name: string; content: string } | null>(null);
 const thinkingEnabled = ref(true);
 const effort = ref<"high" | "max">("high");
 const temperature = ref(1.0);
 const maxTokens = ref(4096);
+const fileInputRef = ref<HTMLInputElement | null>(null);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
 function handleKeydown(e: KeyboardEvent) {
@@ -32,8 +36,18 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 function sendMessage() {
-  const content = inputText.value.trim();
-  if (!content) return;
+  let content = inputText.value.trim();
+  if (!content && !attachedFile.value) return;
+
+  if (attachedFile.value) {
+    const prefix = `[文件: ${attachedFile.value.name}]\n\`\`\`\n${attachedFile.value.content}\n\`\`\`\n\n`;
+    content = prefix + content;
+  }
+
+  if (!content.trim() && attachedFile.value) {
+    content = `请分析以下文件内容:\n\n\`\`\`\n${attachedFile.value.content}\n\`\`\``;
+  }
+
   emit("send", {
     content,
     thinkingEnabled: thinkingEnabled.value,
@@ -41,10 +55,46 @@ function sendMessage() {
     temperature: temperature.value,
     maxTokens: maxTokens.value,
   });
+
   inputText.value = "";
+  attachedFile.value = null;
   if (textareaRef.value) {
     textareaRef.value.style.height = "auto";
   }
+}
+
+function triggerFileInput() {
+  fileInputRef.value?.click();
+}
+
+function handleFileChange(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  if (file.size > MAX_FILE_SIZE) {
+    alert(`文件大小不能超过 10 MB。当前文件: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+    input.value = "";
+    return;
+  }
+
+  const textExts = [".txt", ".md", ".json", ".xml", ".csv", ".tsv", ".yaml", ".yml", ".toml",
+    ".js", ".ts", ".jsx", ".tsx", ".py", ".rs", ".go", ".java", ".c", ".cpp", ".h", ".hpp",
+    ".css", ".html", ".scss", ".less", ".sql", ".sh", ".bash", ".zsh", ".rb", ".php",
+    ".swift", ".kt", ".scala", ".r", ".lua", ".cfg", ".ini", ".conf", ".env", ".gitignore", ".log"];
+  const ext = "." + file.name.split(".").pop()?.toLowerCase();
+
+  if (!textExts.includes(ext)) {
+    alert(`不支持的文件类型: ${ext}。支持的类型: 文本、代码、配置文件等`);
+    input.value = "";
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    attachedFile.value = { name: file.name, content: reader.result as string };
+  };
+  reader.readAsText(file);
 }
 
 function autoGrow() {
@@ -95,11 +145,23 @@ function autoGrow() {
           @input="autoGrow"
         ></textarea>
         <div class="input-actions">
-          <button class="btn-input" title="附加文件">
+          <input
+            ref="fileInputRef"
+            type="file"
+            style="display:none"
+            @change="handleFileChange"
+            accept=".txt,.md,.json,.xml,.csv,.tsv,.yaml,.yml,.toml,.js,.ts,.jsx,.tsx,.py,.rs,.go,.java,.c,.cpp,.h,.hpp,.css,.html,.scss,.sql,.sh,.rb,.php,.swift,.kt,.r,.lua,.cfg,.ini,.conf,.log"
+          />
+          <button class="btn-input" title="附加文件" @click="triggerFileInput">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
             </svg>
           </button>
+          <div v-if="attachedFile" class="file-badge" :title="attachedFile.name">
+            <span class="file-badge-icon">📄</span>
+            <span class="file-badge-name">{{ attachedFile.name.length > 20 ? attachedFile.name.slice(0, 17) + '...' : attachedFile.name }}</span>
+            <button class="file-remove" @click="attachedFile = null">✕</button>
+          </div>
           <button
             class="btn-send"
             :class="{ disabled: isLoading }"
@@ -168,4 +230,20 @@ function autoGrow() {
 .input-hint {
   font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 8px;
 }
+
+.file-badge {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: var(--radius-sm);
+  background: var(--accent-bg); border: 1px solid var(--border);
+  font-size: 11px; color: var(--text-secondary); max-width: 180px;
+  white-space: nowrap; cursor: default;
+}
+.file-badge-icon { font-size: 12px; flex-shrink: 0; }
+.file-badge-name { overflow: hidden; text-overflow: ellipsis; }
+.file-remove {
+  border: none; background: transparent; color: var(--text-muted);
+  cursor: pointer; font-size: 11px; padding: 0 2px; line-height: 1;
+  flex-shrink: 0;
+}
+.file-remove:hover { color: var(--text-primary); }
 </style>
