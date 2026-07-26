@@ -12,7 +12,7 @@
 
 html, body, #app { height: 100%; font-family: var(--font-sans); background: var(--bg-primary); color: var(--text-primary); overflow: hidden; }
 
-/* Frost */
+/* ===== Theme: 霜白 (Frost) - 最浅 ===== */
 [data-theme="frost"] {
   --bg-primary: #f2f4f8;
   --bg-sidebar: #eaecf2;
@@ -39,11 +39,32 @@ html, body, #app { height: 100%; font-family: var(--font-sans); background: var(
   --tool-bg: rgba(64, 112, 184, 0.06);
   --tool-border: rgba(64, 112, 184, 0.15);
   --code-border: #d6dae3;
+  --code-text: #1a1d2e;
+  --syn-keyword: #6054c8;
+  --syn-string: #1d8c6e;
+  --syn-comment: #8890a8;
+  --syn-function: #4060d0;
+  --syn-number: #d07020;
+  --syn-type: #3c8c40;
+  --syn-literal: #b05020;
+  --syn-builtin: #6054c8;
+  --syn-title: #4060d0;
+  --syn-attr: #d07020;
+  --syn-params: #5a6078;
+  --syn-meta: #8890a8;
+  --syn-section: #c84040;
+  --syn-selector-tag: #3c8c40;
+  --syn-tag: #4060d0;
+  --syn-doctag: #c84040;
+  --syn-regexp: #c84040;
+  --syn-deletion: #c84040;
+  --syn-addition: #1d8c6e;
+  --syn-subst: #5a6078;
   --scrollbar-thumb: #cdd1db;
   --scrollbar-thumb-hover: #a8aec0;
 }
 
-/* Morning Dew */
+/* ===== Theme: 晨露 (Morning Dew) - 较浅 ===== */
 [data-theme="morning-dew"] {
   --bg-primary: #ece7de;
   --bg-sidebar: #e4dfd6;
@@ -70,11 +91,32 @@ html, body, #app { height: 100%; font-family: var(--font-sans); background: var(
   --tool-bg: rgba(75, 114, 204, 0.06);
   --tool-border: rgba(75, 114, 204, 0.15);
   --code-border: #d0cbc2;
+  --code-text: #1e1c18;
+  --syn-keyword: #5c4894;
+  --syn-string: #1a7a64;
+  --syn-comment: #8b8678;
+  --syn-function: #2d6bb8;
+  --syn-number: #b86824;
+  --syn-type: #38804c;
+  --syn-literal: #a05020;
+  --syn-builtin: #5c4894;
+  --syn-title: #2d6bb8;
+  --syn-attr: #b86824;
+  --syn-params: #6b6760;
+  --syn-meta: #8b8678;
+  --syn-section: #c04038;
+  --syn-selector-tag: #38804c;
+  --syn-tag: #2d6bb8;
+  --syn-doctag: #c04038;
+  --syn-regexp: #c04038;
+  --syn-deletion: #c04038;
+  --syn-addition: #1a7a64;
+  --syn-subst: #6b6760;
   --scrollbar-thumb: #c8c3ba;
   --scrollbar-thumb-hover: #a8a39a;
 }
 
-/* Aurora */
+/* ===== Theme: 极光 (Aurora) - 不深不浅 ===== */
 [data-theme="aurora"] {
   --bg-primary: #1a5838;
   --bg-sidebar: #125030;
@@ -101,11 +143,32 @@ html, body, #app { height: 100%; font-family: var(--font-sans); background: var(
   --tool-bg: rgba(144, 208, 252, 0.14);
   --tool-border: rgba(144, 208, 252, 0.28);
   --code-border: #38a868;
+  --code-text: #e0f0e0;
+  --syn-keyword: #c0e878;
+  --syn-string: #74fcc0;
+  --syn-comment: #70a080;
+  --syn-function: #90d8fc;
+  --syn-number: #f0c060;
+  --syn-type: #74fcc0;
+  --syn-literal: #f0a060;
+  --syn-builtin: #c0e878;
+  --syn-title: #90d8fc;
+  --syn-attr: #f0c060;
+  --syn-params: #acbcb0;
+  --syn-meta: #70a080;
+  --syn-section: #f08080;
+  --syn-selector-tag: #74fcc0;
+  --syn-tag: #90d8fc;
+  --syn-doctag: #f08080;
+  --syn-regexp: #f08080;
+  --syn-deletion: #f08080;
+  --syn-addition: #74fcc0;
+  --syn-subst: #acbcb0;
   --scrollbar-thumb: #105028;
   --scrollbar-thumb-hover: #58c880;
 }
 
-/* Dusk */
+/* ===== Theme: 薄暮 (Dusk) - 较深 ===== */
 [data-theme="dusk"] {
   --bg-primary: #2a2630;
   --bg-sidebar: #221e28;
@@ -132,11 +195,32 @@ html, body, #app { height: 100%; font-family: var(--font-sans); background: var(
   --tool-bg: rgba(128, 112, 176, 0.08);
   --tool-border: rgba(128, 112, 176, 0.2);
   --code-border: #3a3640;
+  --code-text: #c8c4d0;
+  --syn-keyword: #b898e0;
+  --syn-string: #7cc080;
+  --syn-comment: #706c78;
+  --syn-function: #8098e0;
+  --syn-number: #d49460;
+  --syn-type: #60b898;
+  --syn-literal: #d49460;
+  --syn-builtin: #b898e0;
+  --syn-title: #8098e0;
+  --syn-attr: #d49460;
+  --syn-params: #9894a0;
+  --syn-meta: #706c78;
+  --syn-section: #e07068;
+  --syn-selector-tag: #60b898;
+  --syn-tag: #8098e0;
+  --syn-doctag: #e07068;
+  --syn-regexp: #e07068;
+  --syn-deletion: #e07068;
+  --syn-addition: #7cc080;
+  --syn-subst: #9894a0;
   --scrollbar-thumb: #3a3640;
   --scrollbar-thumb-hover: #545058;
 }
 
-/* Deep Ocean */
+/* ===== Theme: 深海 (Deep Ocean) - 最深 ===== */
 [data-theme="deep-ocean"] {
   --bg-primary: #080d18;
   --bg-sidebar: #050a14;
@@ -163,9 +247,73 @@ html, body, #app { height: 100%; font-family: var(--font-sans); background: var(
   --tool-bg: rgba(107, 159, 255, 0.08);
   --tool-border: rgba(107, 159, 255, 0.2);
   --code-border: #1e2840;
+  --code-text: #c8d0e0;
+  --syn-keyword: #8898e8;
+  --syn-string: #5cc0a0;
+  --syn-comment: #586080;
+  --syn-function: #6b9fff;
+  --syn-number: #e0b060;
+  --syn-type: #4fc3b4;
+  --syn-literal: #e09050;
+  --syn-builtin: #8898e8;
+  --syn-title: #6b9fff;
+  --syn-attr: #e0b060;
+  --syn-params: #8892aa;
+  --syn-meta: #586080;
+  --syn-section: #e07070;
+  --syn-selector-tag: #4fc3b4;
+  --syn-tag: #6b9fff;
+  --syn-doctag: #e07070;
+  --syn-regexp: #e07070;
+  --syn-deletion: #e07070;
+  --syn-addition: #5cc0a0;
+  --syn-subst: #8892aa;
   --scrollbar-thumb: #161e32;
   --scrollbar-thumb-hover: #243250;
 }
+
+/* Global syntax highlighting (hljs classes) */
+pre code.hljs { display: block; overflow-x: auto; padding: 0; color: var(--code-text); background: transparent; }
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-link { color: var(--syn-keyword); }
+.hljs-function .hljs-keyword { color: var(--syn-keyword); }
+.hljs-subst { color: var(--syn-subst); }
+.hljs-string,
+.hljs-title.class_,
+.hljs-title.class_.inherited__,
+.hljs-meta .hljs-string { color: var(--syn-string); }
+.hljs-comment,
+.hljs-quote { color: var(--syn-comment); font-style: italic; }
+.hljs-function,
+.hljs-title.function_,
+.hljs-title.function_.invoke__ { color: var(--syn-function); }
+.hljs-number { color: var(--syn-number); }
+.hljs-type,
+.hljs-built_in,
+.hljs-builtin-name { color: var(--syn-type); }
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-selector-attr,
+.hljs-selector-pseudo { color: var(--syn-attr); }
+.hljs-params { color: var(--syn-params); }
+.hljs-meta { color: var(--syn-meta); }
+.hljs-title { color: var(--syn-title); }
+.hljs-tag { color: var(--syn-tag); }
+.hljs-name { color: var(--syn-tag); }
+.hljs-doctag { color: var(--syn-doctag); }
+.hljs-regexp,
+.hljs-symbol { color: var(--syn-regexp); }
+.hljs-deletion { color: var(--syn-deletion); text-decoration: line-through; }
+.hljs-addition { color: var(--syn-addition); text-decoration: underline; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+.hljs-bullet,
+.hljs-formula { color: var(--syn-attr); }
 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

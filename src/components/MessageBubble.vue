@@ -123,7 +123,7 @@ function getRenderedContent(content: string | null): string {
   margin-bottom: 10px; position: relative;
 }
 .msg-content :deep(pre code) {
-  font-family: var(--font-mono); font-size: 13px; line-height: 1.6; color: #d6dae5;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.6; color: var(--code-text);
 }
 .msg-content :deep(.code-lang-tag) {
   position: absolute; top: 8px; right: 12px;

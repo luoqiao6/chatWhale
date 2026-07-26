@@ -18,7 +18,7 @@ function createRenderer(): Renderer {
     }
     const langTag = lang ? `<span class="code-lang-tag">${lang}</span>` : "";
     const copyBtn = `<button class="code-copy-btn" title="复制代码" onclick="navigator.clipboard.writeText(this.dataset.code);this.textContent='✅';setTimeout(()=>this.textContent='📋',1500)" data-code="${escapeHtml(text)}">📋</button>`;
-    return `<pre>${langTag}${copyBtn}<code>${highlighted}</code></pre>`;
+    return `<pre>${langTag}${copyBtn}<code class="hljs">${highlighted}</code></pre>`;
   };
 
   return renderer;
