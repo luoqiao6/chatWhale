@@ -2,11 +2,14 @@ mod db;
 mod sse;
 pub mod agent;
 
+use crate::agent::approval;
+use crate::agent::types::{load_agent_settings, AgentChatParams, UsageCounter};
+use crate::agent::AgentRuntime;
 use db::Database;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Mutex;
-use tauri::State;
+use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, State};
 
 use crate::agent::mcp::types::McpServerConfig;
 use crate::agent::tools::ToolRegistry;
@@ -14,6 +17,7 @@ use crate::agent::types::{AgentSettings, ToolDef};
 
 pub struct AppState {
     pub db: Mutex<Database>,
+    pub agent: Mutex<Option<AgentRuntime>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -130,6 +134,58 @@ fn set_agent_settings(
     Ok(())
 }
 
+#[tauri::command]
+async fn agent_chat(
+    app: AppHandle,
+    window: tauri::Window,
+    state: State<'_, AppState>,
+    params: AgentChatParams,
+) -> Result<(), String> {
+    {
+        let mut guard = state.agent.lock().map_err(|e| e.to_string())?;
+        if guard.is_some() {
+            return Err("已有 Agent 正在运行，请等待其结束或先取消".into());
+        }
+        *guard = Some(AgentRuntime {
+            cancellation: tokio_util::sync::CancellationToken::new(),
+            usage: Arc::new(UsageCounter::default()),
+            window_label: window.label().to_string(),
+        });
+    }
+    let settings_map = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        db.get_all_agent_settings().map_err(|e| e.to_string())?
+    };
+    let mcp_configs = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        db.get_enabled_mcp_servers().map_err(|e| e.to_string())?
+    };
+    let settings = load_agent_settings(&settings_map);
+    let window_label = window.label().to_string();
+    tauri::async_runtime::spawn(async move {
+        agent::run_agent(app, window_label, params, settings, mcp_configs).await;
+    });
+    Ok(())
+}
+
+#[tauri::command]
+async fn agent_cancel(state: State<'_, AppState>) -> Result<(), String> {
+    let guard = state.agent.lock().map_err(|e| e.to_string())?;
+    if let Some(rt) = guard.as_ref() {
+        rt.cancellation.cancel();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn agent_approve(id: String, approved: bool) -> Result<(), String> {
+    if approval::resolve_global(&id, approved) {
+        Ok(())
+    } else {
+        Err(format!("审批请求 {id} 不存在或已超时"))
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let db = Database::new().expect("Failed to initialize database");
@@ -139,7 +195,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .manage(AppState { db: Mutex::new(db) })
+        .manage(AppState {
+            db: Mutex::new(db),
+            agent: Mutex::new(None),
+        })
         .invoke_handler(tauri::generate_handler![
             get_conversations,
             get_conversation,
@@ -153,6 +212,9 @@ pub fn run() {
             update_mcp_server,
             get_agent_settings,
             set_agent_settings,
+            agent_chat,
+            agent_cancel,
+            agent_approve,
         ])
         .run(tauri::generate_context!())
         .expect("error while running chatWhale");
