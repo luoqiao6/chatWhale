@@ -4,8 +4,13 @@ pub mod agent;
 
 use db::Database;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::State;
+
+use crate::agent::mcp::types::McpServerConfig;
+use crate::agent::tools::ToolRegistry;
+use crate::agent::types::{AgentSettings, ToolDef};
 
 pub struct AppState {
     pub db: Mutex<Database>,
@@ -77,6 +82,54 @@ fn delete_conversation(state: State<AppState>, id: String) -> Result<(), String>
     db.delete_conversation(&id).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn list_builtin_tools() -> Result<Vec<ToolDef>, String> {
+    let registry = ToolRegistry::with_builtins(&AgentSettings::default());
+    Ok(registry.list_definitions())
+}
+
+#[tauri::command]
+fn list_mcp_servers(state: State<AppState>) -> Result<Vec<McpServerConfig>, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.list_mcp_servers().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn add_mcp_server(state: State<AppState>, server: McpServerConfig) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.add_mcp_server(&server).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn remove_mcp_server(state: State<AppState>, id: String) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.remove_mcp_server(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_mcp_server(state: State<AppState>, server: McpServerConfig) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.update_mcp_server(&server).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_agent_settings(state: State<AppState>) -> Result<HashMap<String, String>, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.get_all_agent_settings().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_agent_settings(
+    state: State<AppState>,
+    settings: HashMap<String, String>,
+) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    for (k, v) in settings {
+        db.set_agent_setting(&k, &v).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let db = Database::new().expect("Failed to initialize database");
@@ -93,6 +146,13 @@ pub fn run() {
             create_conversation,
             update_conversation,
             delete_conversation,
+            list_builtin_tools,
+            list_mcp_servers,
+            add_mcp_server,
+            remove_mcp_server,
+            update_mcp_server,
+            get_agent_settings,
+            set_agent_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running chatWhale");

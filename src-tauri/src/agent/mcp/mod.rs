@@ -2,7 +2,7 @@ pub mod transport;
 pub mod types;
 
 use crate::agent::types::{ToolDef, ToolResult};
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
