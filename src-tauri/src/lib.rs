@@ -1,5 +1,6 @@
 mod db;
 mod sse;
+mod agent;
 
 use db::Database;
 use serde::{Deserialize, Serialize};
