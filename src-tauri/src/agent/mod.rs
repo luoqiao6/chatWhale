@@ -1,5 +1,7 @@
 pub mod types;
 pub mod llm;
+pub mod approval;
+pub mod tools;
 
 use serde::Serialize;
 use std::sync::Arc;
