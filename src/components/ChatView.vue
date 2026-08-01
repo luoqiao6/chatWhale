@@ -24,6 +24,28 @@ const messages = ref<Message[]>([]);
 const isLoading = ref(false);
 const chatContainer = ref<HTMLElement | null>(null);
 
+const MAX_LOG_BODY_LENGTH = 500;
+
+function generateRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12);
+}
+
+function truncateLogBody(body: string): string {
+  if (body.length <= MAX_LOG_BODY_LENGTH) return body;
+  return body.slice(0, MAX_LOG_BODY_LENGTH) + "…[截断 " + (body.length - MAX_LOG_BODY_LENGTH) + " 字符]";
+}
+
+function logRequestFailure(requestId: string, status: number | null, body: string): void {
+  console.error("[chat/completions] 请求失败", {
+    requestId,
+    status,
+    responseBody: truncateLogBody(body),
+  });
+}
+
 function scrollToBottom() {
   nextTick(() => {
     if (chatContainer.value) {
@@ -162,6 +184,8 @@ async function handleSend(params: SendParams) {
   messages.value.push(userMsg);
   scrollToBottom();
 
+  const requestId = generateRequestId();
+
   const assistantMsg: Message = { role: "assistant", content: null, reasoning_content: null };
   messages.value.push(assistantMsg);
   const assistantIndex = messages.value.length - 1;
@@ -196,7 +220,9 @@ async function handleSend(params: SendParams) {
 
     if (!resp.ok) {
       const errText = await resp.text();
-      messages.value[assistantIndex].content = "API \u9519\u8bef (" + resp.status + "): " + errText;
+      logRequestFailure(requestId, resp.status, errText);
+      messages.value[assistantIndex].content =
+        "API \u9519\u8bef (" + resp.status + ") [\u8bf7\u6c42ID: " + requestId + "]: " + errText;
       isLoading.value = false;
       return;
     }
@@ -269,15 +295,19 @@ async function handleSend(params: SendParams) {
           }
 
           scrollToBottom();
-        } catch {
-          // Skip invalid JSON lines
+        } catch (parseErr) {
+          console.warn("[chat/completions] \u5ffd\u7565\u65e0\u6cd5\u89e3\u6790\u7684 SSE \u884c", {
+            requestId,
+            line: truncateLogBody(line),
+          });
         }
       }
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
+    logRequestFailure(requestId, null, msg);
     if (!messages.value[assistantIndex].content) {
-      messages.value[assistantIndex].content = "\u8fde\u63a5\u5931\u8d25: " + msg;
+      messages.value[assistantIndex].content = "\u8fde\u63a5\u5931\u8d25 [\u8bf7\u6c42ID: " + requestId + "]: " + msg;
     }
   } finally {
     isLoading.value = false;
