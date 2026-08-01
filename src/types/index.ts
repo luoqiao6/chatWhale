@@ -40,6 +40,59 @@ export interface ChatRequest {
   stream?: boolean;
 }
 
+export interface AgentChatParams {
+  messages: Message[];
+  model: string;
+  baseUrl: string;
+  apiKey: string;
+  temperature?: number;
+  maxTokens?: number;
+  thinking?: { type: "enabled" | "disabled" };
+  reasoningEffort?: "high" | "max";
+}
+
+export interface ToolExecution {
+  id: string;
+  name: string;
+  arguments: string;
+  source: string;
+  status: "running" | "done" | "error";
+  result?: string;
+  error?: string;
+}
+
+export interface ApprovalRequest {
+  id: string;
+  tool_name: string;
+  command: string;
+  policy: string;
+}
+
+export interface AgentUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+export interface AgentDonePayload {
+  messages: Message[];
+  reason: "stop" | "max_iterations" | "cancelled" | "finish_reason" | "mcp_error" | "error";
+  usage?: AgentUsage;
+  mcp_error?: string | null;
+}
+
+export interface McpServerConfig {
+  id: string;
+  name: string;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  cwd: string | null;
+  timeout: number;
+  transport: "stdio" | "sse";
+  enabled: boolean;
+}
+
 export interface Tool {
   type: "function";
   function: {
