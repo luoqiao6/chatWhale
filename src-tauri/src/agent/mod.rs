@@ -262,8 +262,16 @@ async fn run_agent_inner(
                             let result = if mcp.is_mcp_tool(&name) {
                                 mcp.call_tool(&name, &tool_call.function.arguments).await
                             } else {
-                                registry.execute(&ctx, tool_call).await
+                                let mut resolved_call = tool_call.clone();
+                                if let Some(actual) = tool_aliases.get(&tool_call.function.name) {
+                                    resolved_call.function.name = actual.clone();
+                                }
+                                registry.execute(&ctx, &resolved_call).await
                             };
+                            // 统一出口脱敏 + 截断（内置与 MCP 结果一致）
+                            let mut result = result;
+                            result.content =
+                                tools::finalize_result(result.content, settings.max_result_bytes);
                             let _ = emit_agent_event(app, Some(window_label), EVENT_TOOL_RESULT, serde_json::json!({
                                 "id": tool_call.id,
                                 "name": name,

@@ -121,6 +121,7 @@ const toolResults = computed(() => {
 
 function toggleAgentMode() {
   if (isAgentRunning.value) return;
+  if (!isTauriEnv) return;
   agentMode.value = !agentMode.value;
 }
 

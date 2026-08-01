@@ -137,7 +137,7 @@ impl ToolRegistry {
     }
 }
 
-fn finalize_result(content: String, max_bytes: usize) -> String {
+pub fn finalize_result(content: String, max_bytes: usize) -> String {
     let (redacted, _) = redact_secrets(&content);
     truncate_result(&redacted, max_bytes)
 }
