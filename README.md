@@ -107,3 +107,33 @@ npm run tauri build   # 生产构建
 | GET /v1/user/balance | 查询账户余额 |
 
 已测试兼容 DeepSeek API (api.deepseek.com)。
+
+## 开发与交付
+
+### 验收清单（提交前必做）
+
+每次变更提交前，按顺序执行以下命令并确认全部通过：
+
+```bash
+npm run typecheck   # 类型检查，要求退出码为 0
+npm run build       # 生产构建（已包含 typecheck + vite build）
+```
+
+关键路径冒烟（本地手动验证，至少覆盖本次变更涉及的路径）：
+
+1. 启动应用（`npm run tauri dev` 或浏览器模式 `npx vite --port 1422 --host 127.0.0.1`）
+2. 发送一条消息，确认 SSE 流式响应逐 token 渲染、无控制台错误
+3. 按变更范围验证对应功能，例如对话导出 / 分享、文件上传、主题切换
+
+验收全部通过后才能提交；本项目不使用外部 CI 服务，验收在本地提交前完成。
+
+### 恢复说明
+
+```bash
+git log --oneline                    # 先定位需要回退的提交
+git revert <commit>                  # 已发布（已 push）的错误提交：生成反向提交并保留历史，之后 git push
+git reset --hard <commit>            # 本地未发布提交：重置到目标提交，丢弃其后的提交
+git restore .                        # 仅丢弃工作区未提交的改动
+```
+
+注意：`git reset --hard` 与 `git restore` 会永久丢弃未提交的改动；如需保留可先 `git stash`。
