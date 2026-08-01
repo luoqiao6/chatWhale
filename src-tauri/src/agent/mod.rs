@@ -4,6 +4,7 @@ pub mod approval;
 pub mod tools;
 pub mod agent_config;
 pub mod skills;
+pub mod mcp;
 
 use serde::Serialize;
 use std::sync::Arc;
