@@ -4,6 +4,7 @@ import { ref } from "vue";
 defineProps<{
   isLoading: boolean;
   model?: string;
+  agentMode: boolean;
 }>();
 
 interface SendParams {
@@ -16,6 +17,7 @@ interface SendParams {
 
 const emit = defineEmits<{
   send: [params: SendParams];
+  toggleAgent: [];
 }>();
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -163,6 +165,18 @@ function autoGrow() {
             <button class="file-remove" @click="attachedFile = null">✕</button>
           </div>
           <button
+            class="btn-input"
+            :class="{ active: agentMode }"
+            :title="agentMode ? 'Agent 模式（工具调用回路）' : '普通模式'"
+            @click="emit('toggleAgent')"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M12 2a3 3 0 0 1 3 3v1h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3V5a3 3 0 0 1 3-3z"/>
+              <circle cx="12" cy="13" r="2"/>
+              <path d="M12 15v3"/>
+            </svg>
+          </button>
+          <button
             class="btn-send"
             :class="{ disabled: isLoading }"
             :disabled="isLoading"
@@ -220,6 +234,7 @@ function autoGrow() {
   display: flex; align-items: center; justify-content: center;
 }
 .btn-input:hover { background: var(--bg-hover); color: var(--text-primary); }
+.btn-input.active { color: var(--accent); background: var(--accent-bg); }
 .btn-send {
   width: 32px; height: 32px; border-radius: var(--radius-sm); border: none;
   background: var(--accent); color: var(--bg-primary); cursor: pointer;

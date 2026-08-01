@@ -10,7 +10,7 @@ import type {
 
 type UnlistenFn = () => void;
 
-interface ToolStartPayload {
+export interface ToolStartPayload {
   id: string;
   name: string;
   arguments: string;
@@ -24,7 +24,11 @@ interface ToolResultPayload {
   error?: string | null;
 }
 
-export function useAgent(messages: Ref<Message[]>, saveMessages: () => void) {
+export function useAgent(
+  messages: Ref<Message[]>,
+  saveMessages: () => void,
+  onToolStart?: (p: ToolStartPayload) => void,
+) {
   const isAgentRunning = ref(false);
   const toolStates = ref<Record<string, ToolExecution>>({});
   const pendingApproval = ref<ApprovalRequest | null>(null);
@@ -92,6 +96,7 @@ export function useAgent(messages: Ref<Message[]>, saveMessages: () => void) {
     unlistenFns.push(
       await listen<ToolStartPayload>("agent-tool-start", (e) => {
         const p = e.payload;
+        onToolStart?.(p);
         setToolState(p.id, {
           id: p.id,
           name: p.name,

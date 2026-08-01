@@ -6,6 +6,8 @@ import type { Message } from "../types";
 const props = defineProps<{
   message: Message;
   isLast: boolean;
+  toolSources?: Record<string, string>;
+  toolResults?: Record<string, string>;
 }>();
 
 const thinkingOpen = ref(true);
@@ -68,12 +70,19 @@ function getRenderedContent(content: string | null): string {
           <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
         </svg>
         <span class="tool-fn-name">{{ tc.function.name }}</span>
-        <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">→ 完成</span>
+        <span class="tool-source-badge">{{ toolSources?.[tc.id] ?? "builtin" }}</span>
+        <span class="tool-status-text">
+          {{ toolResults?.[tc.id] !== undefined ? "→ 完成" : "" }}
+        </span>
         <span class="tool-chevron">▶</span>
       </div>
       <div class="tool-call-body">
         <div class="tool-section-label">调用参数</div>
         <div class="tool-json">{{ tc.function.arguments }}</div>
+        <template v-if="toolResults?.[tc.id] !== undefined">
+          <div class="tool-section-label">结果</div>
+          <pre class="tool-result">{{ toolResults?.[tc.id] }}</pre>
+        </template>
       </div>
     </div>
 
@@ -181,6 +190,11 @@ function getRenderedContent(content: string | null): string {
 .tool-call-header:hover { background: var(--tool-bg); }
 .tool-call-icon { width: 16px; height: 16px; opacity: 0.7; }
 .tool-fn-name { font-weight: 600; font-family: var(--font-mono); }
+.tool-source-badge {
+  font-size: 10px; padding: 1px 6px; border-radius: 100px;
+  background: var(--accent-bg); color: var(--accent);
+}
+.tool-status-text { font-size: 11px; color: var(--text-muted); margin-left: auto; }
 .tool-chevron { transition: transform 0.2s; font-size: 10px; margin-left: auto; }
 .tool-call.open .tool-chevron { transform: rotate(90deg); }
 .tool-call-body { display: none; padding: 10px 14px 12px; border-top: 1px solid var(--tool-border); }
@@ -193,6 +207,12 @@ function getRenderedContent(content: string | null): string {
   font-family: var(--font-mono); font-size: 12px; background: rgba(0,0,0,0.15);
   border-radius: var(--radius-sm); padding: 10px 14px; overflow-x: auto; line-height: 1.6;
   color: var(--text-secondary);
+}
+.tool-result {
+  font-family: var(--font-mono); font-size: 12px; background: rgba(0,0,0,0.15);
+  border-radius: var(--radius-sm); padding: 10px 14px; overflow-x: auto; line-height: 1.6;
+  color: var(--text-secondary); white-space: pre-wrap; word-break: break-all;
+  max-height: 240px; overflow-y: auto;
 }
 
 /* Loading dots */

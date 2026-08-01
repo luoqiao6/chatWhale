@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, nextTick, watch } from "vue";
+import { ref, computed, nextTick, watch, onUnmounted } from "vue";
 import { useConversations } from "../composables/useConversations";
+import { useAgent } from "../composables/useAgent";
 import ChatInput from "./ChatInput.vue";
 import MessageBubble from "./MessageBubble.vue";
 import type { Message, ToolCall } from "../types";
@@ -23,6 +24,11 @@ interface SendParams {
 const messages = ref<Message[]>([]);
 const isLoading = ref(false);
 const chatContainer = ref<HTMLElement | null>(null);
+const agentMode = ref(false);
+const toolSources = ref<Record<string, string>>({});
+
+const isTauriEnv =
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 const MAX_LOG_BODY_LENGTH = 500;
 
@@ -80,6 +86,42 @@ function saveMessages() {
       messages: JSON.stringify(messages.value),
     });
   }
+}
+
+const {
+  isAgentRunning,
+  toolStates,
+  pendingApproval,
+  agentUsage,
+  agentError,
+  lastReason,
+  startAgent,
+  cancelAgent,
+  approveCommand,
+  cleanup,
+} = useAgent(messages, saveMessages, (p) => {
+  toolSources.value = { ...toolSources.value, [p.id]: p.source };
+});
+
+const toolResults = computed(() => {
+  const map: Record<string, string> = {};
+  for (let i = 0; i < messages.value.length; i++) {
+    const m = messages.value[i];
+    if (m.role === "assistant" && m.tool_calls) {
+      for (const tc of m.tool_calls) {
+        const next = messages.value[i + 1];
+        if (next?.role === "tool" && next.tool_call_id === tc.id) {
+          map[tc.id] = next.content ?? "";
+        }
+      }
+    }
+  }
+  return map;
+});
+
+function toggleAgentMode() {
+  if (isAgentRunning.value) return;
+  agentMode.value = !agentMode.value;
 }
 
 const shareDone = ref(false);
@@ -177,6 +219,25 @@ async function handleSend(params: SendParams) {
   const { baseUrl, apiKey } = getApiConfig();
   if (!apiKey) {
     alert("\u8bf7\u5148\u5728\u8bbe\u7f6e\u4e2d\u914d\u7f6e API Key");
+    return;
+  }
+
+  if (agentMode.value) {
+    const userMsg: Message = { role: "user", content };
+    messages.value.push(userMsg);
+    scrollToBottom();
+    isLoading.value = true;
+    await startAgent({
+      messages: buildMessages(),
+      model: props.model || "deepseek-v4-pro",
+      baseUrl,
+      apiKey,
+      temperature,
+      maxTokens,
+      thinking: thinkingEnabled ? { type: "enabled" } : { type: "disabled" },
+      reasoningEffort: effort,
+    });
+    isLoading.value = isAgentRunning.value;
     return;
   }
 
@@ -319,6 +380,10 @@ watch(
   () => messages.value.length,
   () => scrollToBottom(),
 );
+
+onUnmounted(() => {
+  cleanup();
+});
 </script>
 
 <template>
@@ -352,6 +417,8 @@ watch(
           :key="idx"
           :message="msg"
           :is-last="idx === messages.length - 1"
+          :tool-sources="toolSources"
+          :tool-results="toolResults"
         />
         <div v-if="messages.length === 0" class="empty-state">
           <div class="empty-icon">🐋</div>
@@ -361,7 +428,54 @@ watch(
       </div>
     </div>
 
-    <ChatInput :is-loading="isLoading" @send="handleSend" />
+    <!-- Agent 工具活动面板 -->
+    <div v-if="agentMode && Object.keys(toolStates).length" class="tool-activity">
+      <div
+        v-for="ts in Object.values(toolStates)"
+        :key="ts.id"
+        class="tool-card"
+        :class="ts.status"
+      >
+        <span v-if="ts.status === 'running'" class="tool-spinner"></span>
+        <span v-else class="tool-status-icon">{{ ts.status === "done" ? "✓" : "✕" }}</span>
+        <span class="tool-name">{{ ts.name }}</span>
+        <span class="tool-source">{{ ts.source }}</span>
+        <span v-if="ts.status !== 'running'" class="tool-result-preview">{{ ts.result }}</span>
+      </div>
+    </div>
+
+    <!-- 命令审批卡片 -->
+    <div v-if="pendingApproval" class="approval-card">
+      <div class="approval-title">
+        命令审批 · {{ pendingApproval.policy }}
+      </div>
+      <pre class="approval-command">{{ pendingApproval.command }}</pre>
+      <div class="approval-actions">
+        <button class="btn-approve" @click="approveCommand(pendingApproval.id, true)">批准</button>
+        <button class="btn-reject" @click="approveCommand(pendingApproval.id, false)">拒绝</button>
+      </div>
+    </div>
+
+    <!-- Agent 状态条 -->
+    <div v-if="agentMode" class="agent-status">
+      <span v-if="isAgentRunning" class="agent-running">
+        <span class="agent-dot"></span> Agent 运行中
+        <button class="btn-cancel" @click="cancelAgent">取消</button>
+      </span>
+      <span v-else-if="lastReason" class="agent-reason">已结束：{{ lastReason }}</span>
+      <span v-if="agentUsage" class="agent-usage">
+        tokens: {{ agentUsage.total_tokens }}
+      </span>
+      <span v-if="agentError" class="agent-error">⚠ {{ agentError }}</span>
+      <span v-if="!isTauriEnv" class="agent-env-hint">Agent 模式需要桌面运行环境</span>
+    </div>
+
+    <ChatInput
+      :is-loading="isLoading"
+      :agent-mode="agentMode"
+      @send="handleSend"
+      @toggle-agent="toggleAgentMode"
+    />
   </main>
 </template>
 
@@ -397,4 +511,75 @@ watch(
 .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.6; }
 .empty-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text-secondary); }
 .empty-desc { font-size: 13px; }
+
+/* Agent 工具活动面板 */
+.tool-activity {
+  max-width: 780px; margin: 0 auto; padding: 0 24px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.tool-card {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--tool-border); border-radius: var(--radius);
+  background: var(--bg-tool); padding: 8px 14px; font-size: 12px;
+  color: var(--tool-color);
+}
+.tool-card.error { border-color: #e05b5b; }
+.tool-spinner {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--border-active); border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+.tool-status-icon { font-weight: 700; }
+.tool-name { font-family: var(--font-mono); font-weight: 600; }
+.tool-source {
+  font-size: 10px; padding: 1px 6px; border-radius: 100px;
+  background: var(--accent-bg); color: var(--accent);
+}
+.tool-result-preview {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-muted);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 审批卡片 */
+.approval-card {
+  max-width: 780px; margin: 0 auto 12px; padding: 12px 16px;
+  border: 1px solid var(--border-active); border-radius: var(--radius);
+  background: var(--bg-card);
+}
+.approval-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+.approval-command {
+  font-family: var(--font-mono); font-size: 12px; background: var(--bg-code);
+  border-radius: var(--radius-sm); padding: 8px 12px; overflow-x: auto;
+  white-space: pre-wrap; word-break: break-all; margin-bottom: 10px;
+}
+.approval-actions { display: flex; gap: 8px; }
+.btn-approve, .btn-reject {
+  padding: 6px 18px; border-radius: var(--radius-sm); border: none;
+  font-size: 13px; cursor: pointer;
+}
+.btn-approve { background: var(--accent); color: var(--bg-primary); }
+.btn-reject { background: var(--bg-hover); color: var(--text-secondary); }
+
+/* Agent 状态条 */
+.agent-status {
+  max-width: 780px; margin: 0 auto; padding: 0 24px 8px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  font-size: 12px; color: var(--text-muted);
+}
+.agent-running { display: flex; align-items: center; gap: 6px; color: var(--accent); }
+.agent-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.btn-cancel {
+  padding: 3px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 11px;
+}
+.btn-cancel:hover { color: var(--text-primary); border-color: var(--border-active); }
+.agent-reason { font-family: var(--font-mono); }
+.agent-usage { font-family: var(--font-mono); }
+.agent-error { color: #e05b5b; }
+.agent-env-hint { color: #d4a017; }
 </style>
