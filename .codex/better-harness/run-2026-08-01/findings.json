@@ -1,0 +1,315 @@
+{
+  "summary": {
+    "projectName": "chatWhale",
+    "locale": "zh-CN",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 25,
+    "overview": "chatWhale 是年轻的 Tauri v2 + Vue 3 桌面 LLM 客户端（8 个提交、0 测试文件、无 AGENTS.md）。会话证据显示 UI 类诉求（代码高亮、模型名、分享按钮、文件上传）已交付提交，但窗口内唯一有编辑的 Episode 为 changed-without-check，0 个与最终变更相关的已审查检查；SSE 流式失败仅以界面文本呈现、无可关联诊断；交付证据只停留在 handoff，且无 CI/PR 门禁与回滚路由。项目文档与运行说明较完整，但缺少指令路由、验证路由与可诊断的可观测性。支持轨：Bootstrap——先补齐导航、验证与风险的基础路由。",
+    "strengths": [
+      "README 明确安装与运行路径（npm install / npm run tauri dev|build），Tauri capabilities 显式声明前端权限面。",
+      "设计文档较完整（docs/design-spec.md 与 docs/guides、docs/apis），提供可发现的规范、API 与功能文档。",
+      "会话证据覆盖完整（8/8 合格会话全量纳入），git 提交记录与会话诉求一一对应（语法高亮、模型名称、分享导出、文件上传均已交付提交）。"
+    ],
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "任务理解",
+        "score": 46,
+        "summary": "项目缺少 AGENTS.md/指令路由，Agent 只能从 README 与设计文档自行推断 owner、命令与边界；规划类诉求有出现，但验收边界缺乏可恢复的项目载体。",
+        "findingRefs": [
+          "agents-md-route"
+        ]
+      },
+      {
+        "id": "controlled-execution",
+        "label": "可控执行",
+        "score": 60,
+        "summary": "README 提供 npm install / tauri dev 等启动路径，Tauri capabilities 显式声明前端权限面；但无 doctor/health/reset/隔离命令，且本次审查未实际执行运行验证。",
+        "findingRefs": []
+      },
+      {
+        "id": "change-validation",
+        "label": "改动验证",
+        "score": 35,
+        "summary": "窗口内唯一有编辑的 Episode 为 changed-without-check，0 个与最终变更相关的已审查检查；项目无测试文件、无 typecheck/lint 脚本接线、build 不跑类型检查、无 CI。",
+        "findingRefs": [
+          "change-validation-route",
+          "sse-diagnosis-route"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "可靠交付",
+        "score": 32,
+        "summary": "窗口内 0 个结构化完成、0 个用户纠正，交付证据停留在 assistant handoff；项目直接提交 main，无 CI/PR 门禁，无回滚/恢复路由。",
+        "findingRefs": [
+          "delivery-acceptance-route"
+        ]
+      },
+      {
+        "id": "learning-capture",
+        "label": "经验沉淀",
+        "score": 38,
+        "summary": "重复流程根扫描缺失（无 requestRoots、候选组合受上限且集中在单一 contextGroup），项目级 Skills=0，无法判定窗口内是否存在可复用的重复需求；本次为证据边界未决，而非干净无候选窗口。",
+        "findingRefs": [
+          "learning-evidence-gap"
+        ]
+      }
+    ],
+    "aiAgentPractice": {
+      "inspectedSurfaces": [],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        },
+        {
+          "surface": "Skills",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        },
+        {
+          "surface": "MCP",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        },
+        {
+          "surface": "Commands",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        },
+        {
+          "surface": "Hooks",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        },
+        {
+          "surface": "Custom Agents",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        },
+        {
+          "surface": "Plugins",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        },
+        {
+          "surface": "Memories",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0,
+          "paths": []
+        }
+      ]
+    },
+    "assignmentSummaries": [
+      {
+        "findingId": "sse-diagnosis-route",
+        "revision": 1,
+        "locale": "zh-CN",
+        "title": "SSE 失败请求已具备可关联的诊断日志与界面标识",
+        "body": "ChatView.vue 为每次 /chat/completions 请求生成稳定请求 id；HTTP 失败时控制台记录同一 id、状态码与截断响应体，界面错误文本包含该 id；typecheck、build 及真实 400 失败请求冒烟均通过，修复边界为前端请求路径，未接线后端代理、未新增依赖。",
+        "outputs": [
+          {
+            "action": "updated",
+            "artifact": "Code",
+            "name": "ChatView.vue 请求失败可观测性",
+            "scope": "Project",
+            "path": "src/components/ChatView.vue",
+            "summary": "为每次 /chat/completions 请求生成稳定 requestId，并贯穿失败日志与界面错误文本"
+          },
+          {
+            "action": "updated",
+            "artifact": "Code",
+            "name": "ChatView.vue 失败日志",
+            "scope": "Project",
+            "path": "src/components/ChatView.vue",
+            "summary": "HTTP 失败时 console.error 记录 requestId、HTTP 状态与截断至 500 字符的响应体"
+          },
+          {
+            "action": "updated",
+            "artifact": "Code",
+            "name": "ChatView.vue SSE 解析诊断",
+            "scope": "Project",
+            "path": "src/components/ChatView.vue",
+            "summary": "SSE 无法解析行由静默跳过改为带 requestId 的 console.warn"
+          }
+        ]
+      },
+      {
+        "findingId": "delivery-acceptance-route",
+        "revision": 1,
+        "locale": "zh-CN",
+        "title": "交付验收与恢复路由已落地并完成提交前验收",
+        "body": "README.md 新增「开发与交付」章节，包含提交前验收清单（npm run typecheck、npm run build、关键路径冒烟）与恢复命令（git revert 已发布提交、git reset --hard 重置本地状态、git restore）；提交前实际执行 npm run typecheck 与 npm run build 均通过，改动仅限 README.md 并已提交（de341d5），未新增外部 CI 服务。",
+        "outputs": [
+          {
+            "action": "updated",
+            "artifact": "Document",
+            "name": "README 验收清单与恢复说明",
+            "scope": "Project",
+            "path": "README.md",
+            "summary": "README 新增「开发与交付」章节：提交前验收清单（npm run typecheck、npm run build、关键路径冒烟）与恢复命令（git revert 已发布提交、git reset --hard 重置本地状态、git restore 丢弃未提交改动）"
+          }
+        ]
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "change-validation-route",
+      "title": "改动后没有可运行的相关验证：类型检查未接线、无测试、无 CI",
+      "severity": "Medium",
+      "reason": "会话证据显示窗口内唯一有编辑的 Episode 为 changed-without-check，0 个与最终变更相关的已审查检查；项目侧 0 个测试文件，package.json 无 typecheck/lint/test 脚本（vue-tsc 在 devDependencies 但未接线），build 只执行 vite build，且仓库无 CI。事实链：Agent 变更后无项目拥有的快速验证可运行，回归只能靠后续运行暴露。修复 owner：package.json 脚本与根指令路由。",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "expectedArtifact": "package.json typecheck 脚本",
+      "expectedOutput": [
+        "在 package.json 增加 typecheck 脚本（vue-tsc --noEmit）并在 build 前执行",
+        "后续变更 Episode 出现与最终变更相关的已审查检查"
+      ],
+      "aiFixPrompt": "/better-harness 修复这个问题\n\n为 chatWhale 增加最小的项目拥有验证路由：在 package.json 中新增 typecheck 脚本并让 build 先执行类型检查；不要在本轮新增测试框架、修改业务源码或引入 CI 服务。\n\n范围：仅修改 package.json（如需可同步根指令文件中的命令说明）。\n## 验证\n- 运行 npm run typecheck，确认退出码为 0\n- 运行 npm run build，确认构建通过\n- 在后续变更任务中观察到变更后先执行 typecheck 再交付"
+    },
+    {
+      "id": "sse-diagnosis-route",
+      "title": "SSE 流式失败只有界面文本，没有日志与关联标识，无法复现-归因-验证",
+      "severity": "Medium",
+      "reason": "会话中出现 API 400 类流式错误（Invalid assistant message）后直接 handoff，错误只写入消息气泡 UI；项目侧 ChatView.vue 由前端直接 fetch /chat/completions，src-tauri/src/sse.rs 的代理函数未注册为 Tauri command（死代码），应用无日志收集、无请求 id 关联。后果：同类接口错误无法复现、诊断与复验，Agent 无法形成修复闭环。修复 owner：前端 SSE 请求路径的可观测性路由。",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "expectedArtifact": "请求 id + 本地日志",
+      "expectedOutput": [
+        "每次流式请求生成稳定请求 id 并保留在错误文本与日志中",
+        "失败的 HTTP 状态与截断响应体可在日志中检索"
+      ],
+      "aiFixPrompt": "/better-harness 修复这个问题\n\nchatWhale 的 SSE 流式请求失败只以界面文本呈现，没有日志或关联标识，Agent 无法复现、归因和验证。最小修复：为 ChatView.vue 中的 /chat/completions 请求生成稳定请求 id，把请求 id、HTTP 状态与截断的响应体记录到开发者控制台，并把请求 id 带入界面错误文本；不要接线后端代理、不要引入新依赖。\n\n范围：仅修改 src/components/ChatView.vue 及可选的日志辅助文件。\n## 验证\n- 触发一次失败请求，确认日志中出现同一请求 id 与 HTTP 状态\n- 确认界面错误文本包含该请求 id\n- 运行 npm run typecheck 通过",
+      "actualOutputRevision": 1,
+      "actualOutput": [
+        {
+          "action": "updated",
+          "artifact": "Code",
+          "name": "ChatView.vue 请求失败可观测性",
+          "scope": "Project",
+          "path": "src/components/ChatView.vue",
+          "summary": "为每次 /chat/completions 请求生成稳定 requestId，并贯穿失败日志与界面错误文本"
+        },
+        {
+          "action": "updated",
+          "artifact": "Code",
+          "name": "ChatView.vue 失败日志",
+          "scope": "Project",
+          "path": "src/components/ChatView.vue",
+          "summary": "HTTP 失败时 console.error 记录 requestId、HTTP 状态与截断至 500 字符的响应体"
+        },
+        {
+          "action": "updated",
+          "artifact": "Code",
+          "name": "ChatView.vue SSE 解析诊断",
+          "scope": "Project",
+          "path": "src/components/ChatView.vue",
+          "summary": "SSE 无法解析行由静默跳过改为带 requestId 的 console.warn"
+        }
+      ],
+      "assignmentSummary": {
+        "locale": "zh-CN",
+        "title": "SSE 失败请求已具备可关联的诊断日志与界面标识",
+        "body": "ChatView.vue 为每次 /chat/completions 请求生成稳定请求 id；HTTP 失败时控制台记录同一 id、状态码与截断响应体，界面错误文本包含该 id；typecheck、build 及真实 400 失败请求冒烟均通过，修复边界为前端请求路径，未接线后端代理、未新增依赖。"
+      }
+    },
+    {
+      "id": "delivery-acceptance-route",
+      "title": "交付只有 handoff 信号，无验收证据、无门禁、无恢复路由",
+      "severity": "Medium",
+      "reason": "窗口内 0 个结构化完成、0 个用户纠正、0 个与最终变更相关的已审查检查，11 个结果信号全部是 assistant handoff；项目直接提交 main、无 CI/PR 门禁、无回滚或恢复文档。后果：交付声明无法被证据验证，错误变更可直达主线且无法快速恢复。修复 owner：验收与恢复路由（根指令 + 提交前检查）。",
+      "dimensionRefs": [
+        "reliable-delivery"
+      ],
+      "expectedArtifact": "验收与恢复说明",
+      "expectedOutput": [
+        "根指令或 README 记录验收步骤（typecheck + build + 冒烟）与恢复命令",
+        "提交前执行 typecheck 与 build"
+      ],
+      "aiFixPrompt": "/better-harness 修复这个问题\n\nchatWhale 的交付只停留在 handoff：没有验收证据、没有提交门禁、也没有回滚或恢复说明。最小修复：在根指令或 README 中记录验收清单（npm run typecheck、npm run build、关键路径冒烟）与恢复说明（git revert 已发布提交、重置本地状态），并在提交前执行验收命令；不要新增外部 CI 服务。\n\n范围：仅修改根指令文件/README 与 package.json（如需要）。\n## 验证\n- 运行 npm run typecheck 与 npm run build 均通过\n- 文档中出现明确的验收清单与恢复命令",
+      "actualOutputRevision": 1,
+      "actualOutput": [
+        {
+          "action": "updated",
+          "artifact": "Document",
+          "name": "README 验收清单与恢复说明",
+          "scope": "Project",
+          "path": "README.md",
+          "summary": "README 新增「开发与交付」章节：提交前验收清单（npm run typecheck、npm run build、关键路径冒烟）与恢复命令（git revert 已发布提交、git reset --hard 重置本地状态、git restore 丢弃未提交改动）"
+        }
+      ],
+      "assignmentSummary": {
+        "locale": "zh-CN",
+        "title": "交付验收与恢复路由已落地并完成提交前验收",
+        "body": "README.md 新增「开发与交付」章节，包含提交前验收清单（npm run typecheck、npm run build、关键路径冒烟）与恢复命令（git revert 已发布提交、git reset --hard 重置本地状态、git restore）；提交前实际执行 npm run typecheck 与 npm run build 均通过，改动仅限 README.md 并已提交（de341d5），未新增外部 CI 服务。"
+      }
+    },
+    {
+      "id": "agents-md-route",
+      "title": "缺少根 AGENTS.md，Agent 只能从 README 与文档自行推断命令、owner 与边界",
+      "severity": "Low",
+      "reason": "项目级指令文件为 0（agentInstructions status=missing），Agent 无法从项目指令获知安装/运行/验证命令、核心 owner（src/composables、src-tauri/src）与文档路由（docs/design-spec.md、docs/apis），只能靠通用知识与 README 推断；后果是导航成本高、范围边界易漂移，且风险边界（本地 API Key、未净化 HTML 渲染）无人显式声明。修复 owner：根 AGENTS.md。",
+      "dimensionRefs": [
+        "task-understanding"
+      ],
+      "expectedArtifact": "根 AGENTS.md",
+      "expectedOutput": [
+        "包含 npm 命令、typecheck 命令、核心 owner 与文档路由",
+        "AGENTS.md 不超过 80 行，命令与 package.json 一致"
+      ],
+      "aiFixPrompt": "/better-harness 修复这个问题\n\n项目没有根 AGENTS.md，Agent 无法从项目指令获知安装、运行、验证命令、核心 owner 与文档路由。最小修复：新增简短根 AGENTS.md，包含 npm install、npm run dev、npm run build、npm run tauri dev、typecheck 命令，核心 owner（src/composables、src-tauri/src），文档路由（docs/design-spec.md、docs/apis），以及风险边界（API Key 仅存本地且不提交、模型内容渲染需注意未净化 HTML）；不要粘贴长教程或复制 README。\n\n范围：仅新增根 AGENTS.md，不修改业务代码。\n## 验证\n- AGENTS.md 存在且不超过 80 行\n- 其中命令与 package.json scripts 完全一致\n- 按其中命令可完成一次 npm run build"
+    },
+    {
+      "id": "learning-evidence-gap",
+      "title": "重复工作与学习机会无法判定：根扫描缺失且项目级可复用资产为零",
+      "severity": "Low",
+      "reason": "会话证据信封未提供 requestRoots 根扫描，候选组合受 5 条上限限制且 UI 类候选集中在单一 contextGroup，无法形成两个不同上下文组的可比 Episode，因此 30 天窗口内是否存在重复流程或知识需求不可判定；同时项目级 Skills=0，即使有重复需求也没有项目 owner 可对账。后果：生命周期机会识别处于证据边界未决状态，可能遗漏可复用改进。修复 owner：harness 会话证据收集路由的根扫描输出。",
+      "kind": "evidence-gap",
+      "dimensionRefs": [
+        "learning-capture"
+      ],
+      "expectedArtifact": "requestRoots 根扫描输出",
+      "expectedOutput": [
+        "证据信封补齐 requestRoots 与 requestRootBudget，或显式标记扫描不完整",
+        "报告不再声称存在或不存在重复工作流"
+      ],
+      "aiFixPrompt": "/better-harness 修复这个问题\n\n会话证据信封缺少 requestRoots 根扫描，候选组合受上限与单一 contextGroup 限制，无法判定窗口内是否存在重复流程或知识需求，且项目级 Skills 为 0 无处对账。最小修复：在会话证据收集路由中输出 requestRoots 与 requestRootBudget，并在报告中显式标注生命周期机会识别为证据缺口而非干净窗口；不要创建任何 Skill 或 Memory。\n\n范围：仅修改 harness 的会话证据收集输出与报告结论措辞。\n## 验证\n- 重新生成证据信封后 requestRoots 非空或显式标记扫描不完整\n- 报告结论将重复工作状态表述为不可判定，而非存在或不存在"
+    }
+  ]
+}
