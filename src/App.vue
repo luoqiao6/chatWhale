@@ -5,6 +5,7 @@ import Sidebar from "./components/Sidebar.vue";
 import ChatView from "./components/ChatView.vue";
 import Settings from "./components/Settings.vue";
 import ModelManager from "./components/ModelManager.vue";
+import AgentSettings from "./components/AgentSettings.vue";
 import type { ThemeName } from "./types";
 
 const { groupedConversations, createConversation, conversations } = useConversations();
@@ -14,6 +15,7 @@ const currentConvId = ref<string | null>(null);
 const currentModel = ref("deepseek-v4-pro");
 const showSettings = ref(false);
 const showModelManager = ref(false);
+const showAgentSettings = ref(false);
 
 function switchTheme(theme: ThemeName) {
   currentTheme.value = theme;
@@ -73,6 +75,7 @@ function syncBorders() {
       @select-conversation="selectConversation"
       @new-conversation="newConversation"
       @open-settings="showSettings = true"
+      @open-agent-settings="showAgentSettings = true"
       @open-model-manager="showModelManager = true"
     />
     <ChatView
@@ -81,6 +84,7 @@ function syncBorders() {
       :model="currentModel"
     />
     <Settings v-if="showSettings" @close="showSettings = false" />
+    <AgentSettings v-if="showAgentSettings" @close="showAgentSettings = false" />
     <ModelManager v-if="showModelManager" @close="showModelManager = false" @select-model="selectModel" />
   </div>
 </template>
