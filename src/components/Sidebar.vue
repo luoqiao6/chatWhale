@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ThemeName, Conversation } from "../types";
+import type { ThemeName, Conversation, Workspace } from "../types";
 import { THEME_META } from "../types";
 
 defineProps<{
@@ -7,6 +7,10 @@ defineProps<{
   currentConvId: string | null;
   currentModel: string;
   groupedConversations: { label: string; items: Conversation[] }[];
+  currentWorkspace: Workspace | null;
+  activeWorkspaces: Workspace[];
+  archivedWorkspaces: Workspace[];
+  isAgentRunning: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -16,6 +20,8 @@ const emit = defineEmits<{
   openSettings: [];
   openAgentSettings: [];
   openModelManager: [];
+  selectWorkspace: [id: string];
+  openWorkspaceManager: [];
 }>();
 
 const themeNames: ThemeName[] = ["frost", "morning-dew", "aurora", "dusk", "deep-ocean"];

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
 import { watchAgentLoading } from "./useAgent";
 
@@ -27,5 +27,30 @@ describe("watchAgentLoading", () => {
     isAgentRunning.value = true;
     await nextTick();
     expect(isLoading.value).toBe(false);
+  });
+});
+
+const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn().mockResolvedValue(() => {}),
+}));
+
+import { useAgent } from "./useAgent";
+
+describe("useAgent startAgent workspaceId", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+  });
+
+  it("invoke agent_chat 时携带 workspaceId", async () => {
+    const messages = ref([]);
+    const agent = useAgent(messages as any, () => {});
+    invokeMock.mockRejectedValue(new Error("stop"));
+    await agent.startAgent({} as any, "w1");
+    expect(invokeMock).toHaveBeenCalledWith("agent_chat", {
+      params: {},
+      workspaceId: "w1",
+    });
   });
 });

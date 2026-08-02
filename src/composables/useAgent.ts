@@ -84,7 +84,7 @@ export function useAgent(
     return messages.value[activeAssistantIndex];
   }
 
-  async function startAgent(params: AgentChatParams) {
+  async function startAgent(params: AgentChatParams, workspaceId: string) {
     cleanup();
     isAgentRunning.value = true;
     agentError.value = null;
@@ -176,7 +176,7 @@ export function useAgent(
     );
 
     try {
-      await invoke("agent_chat", { params });
+      await invoke("agent_chat", { params, workspaceId });
     } catch (err) {
       agentError.value = String(err);
       isAgentRunning.value = false;

@@ -9,6 +9,7 @@ import type { Message, ToolCall } from "../types";
 const props = defineProps<{
   convId: string | null;
   model?: string;
+  workspaceId: string;
 }>();
 
 const { getConversation, updateConversation } = useConversations();
@@ -103,6 +104,15 @@ const {
   toolSources.value = { ...toolSources.value, [p.id]: p.source };
 });
 watchAgentLoading(isLoading, isAgentRunning);
+
+watch(
+  () => props.workspaceId,
+  () => {
+    if (props.convId && messages.value.length > 0) {
+      saveMessages();
+    }
+  },
+);
 
 const toolResults = computed(() => {
   const map: Record<string, string> = {};
@@ -229,16 +239,19 @@ async function handleSend(params: SendParams) {
     messages.value.push(userMsg);
     scrollToBottom();
     isLoading.value = true;
-    await startAgent({
-      messages: buildMessages(),
-      model: props.model || "deepseek-v4-pro",
-      baseUrl,
-      apiKey,
-      temperature,
-      maxTokens,
-      thinking: thinkingEnabled ? { type: "enabled" } : { type: "disabled" },
-      reasoningEffort: effort,
-    });
+    await startAgent(
+      {
+        messages: buildMessages(),
+        model: props.model || "deepseek-v4-pro",
+        baseUrl,
+        apiKey,
+        temperature,
+        maxTokens,
+        thinking: thinkingEnabled ? { type: "enabled" } : { type: "disabled" },
+        reasoningEffort: effort,
+      },
+      props.workspaceId,
+    );
     isLoading.value = isAgentRunning.value;
     return;
   }
