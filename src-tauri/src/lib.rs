@@ -87,10 +87,15 @@ fn create_workspace(
     state: State<AppState>,
     name: String,
     path: String,
+    copy_from: Option<String>,
 ) -> Result<Workspace, String> {
     let id = uuid::Uuid::new_v4().to_string();
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    db.create_workspace(&id, &name, &path).map_err(|e| e.to_string())
+    let ws = db.create_workspace(&id, &name, &path).map_err(|e| e.to_string())?;
+    if let Some(from) = copy_from {
+        db.copy_workspace_settings(&from, &id).map_err(|e| e.to_string())?;
+    }
+    Ok(ws)
 }
 
 #[tauri::command]

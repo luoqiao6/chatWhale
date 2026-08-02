@@ -217,6 +217,26 @@ impl Database {
             .context("Failed to commit workspace delete")
     }
 
+    pub fn copy_workspace_settings(&self, from_id: &str, to_id: &str) -> Result<()> {
+        if from_id == to_id {
+            return Ok(());
+        }
+        let Some(source) = self.get_all_agent_settings(from_id).ok().filter(|m| !m.is_empty()) else {
+            // 来源不存在或为空：仅保留目标空间已 seed 的默认键
+            return Ok(());
+        };
+        for (key, value) in source {
+            self.set_agent_setting(to_id, &key, &value)?;
+        }
+        let servers = self.list_mcp_servers(from_id)?;
+        for mut s in servers {
+            s.id = uuid::Uuid::new_v4().to_string();
+            s.workspace_id = to_id.to_string();
+            self.add_mcp_server(&s)?;
+        }
+        Ok(())
+    }
+
     pub fn get_conversations(&self, workspace_id: &str) -> Result<Vec<Conversation>> {
         let mut stmt = self
             .conn
@@ -800,6 +820,41 @@ mod tests {
         assert_eq!(db.get_conversations("w1").unwrap().len(), 0);
         assert_eq!(db.get_all_agent_settings("w1").unwrap().len(), 0);
         assert_eq!(db.list_mcp_servers("w1").unwrap().len(), 0);
+    }
+
+    #[test]
+    fn copy_workspace_settings_copies_values_with_new_mcp_ids() {
+        let db = Database::in_memory().unwrap();
+        db.create_workspace("w1", "项目A", "/tmp/a").unwrap();
+        db.set_agent_setting("w1", "agent.max_iterations", "3").unwrap();
+        db.add_mcp_server(&McpServerConfig {
+            id: "s1".into(),
+            workspace_id: "w1".into(),
+            name: "fs".into(),
+            command: "npx".into(),
+            args: vec![],
+            env: Default::default(),
+            cwd: None,
+            timeout: 30,
+            transport: crate::agent::mcp::types::TransportKind::Stdio,
+            enabled: true,
+        })
+        .unwrap();
+
+        db.create_workspace("w2", "项目B", "/tmp/b").unwrap();
+        db.copy_workspace_settings("w1", "w2").unwrap();
+
+        assert_eq!(
+            db.get_all_agent_settings("w2").unwrap().get("agent.max_iterations").map(|s| s.as_str()),
+            Some("3")
+        );
+        let servers = db.list_mcp_servers("w2").unwrap();
+        assert_eq!(servers.len(), 1);
+        assert_ne!(servers[0].id, "s1");
+        assert_eq!(servers[0].name, "fs");
+
+        // 不存在的来源：不报错、目标空间无复制内容（仅 seed 默认键）
+        db.copy_workspace_settings("nope", "w2").unwrap();
     }
 
     #[test]
