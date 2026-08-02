@@ -22,6 +22,8 @@ const {
   conversations,
   loadConversations,
   createConversation,
+  moveConversation,
+  deleteConversation,
 } = useConversations();
 
 const currentTheme = ref<ThemeName>("deep-ocean");
@@ -111,6 +113,9 @@ function syncBorders() {
       @open-model-manager="showModelManager = true"
       @select-workspace="selectWorkspace"
       @open-workspace-manager="showWorkspaceManager = true"
+      @new-workspace="showWorkspaceManager = true"
+      @move-conversation="(id, target) => moveConversation(id, target)"
+      @delete-conversation="deleteConversation"
     />
     <ChatView
       :key="currentConvId"

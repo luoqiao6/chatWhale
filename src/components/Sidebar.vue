@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import type { ThemeName, Conversation, Workspace } from "../types";
 import { THEME_META } from "../types";
+import WorkspaceSwitcher from "./WorkspaceSwitcher.vue";
+import { workspaceColor } from "../composables/workspaceUi";
 
 defineProps<{
   currentTheme: ThemeName;
@@ -22,9 +25,13 @@ const emit = defineEmits<{
   openModelManager: [];
   selectWorkspace: [id: string];
   openWorkspaceManager: [];
+  newWorkspace: [];
+  moveConversation: [id: string, target: string];
+  deleteConversation: [id: string];
 }>();
 
 const themeNames: ThemeName[] = ["frost", "morning-dew", "aurora", "dusk", "deep-ocean"];
+const openMenuFor = ref<string | null>(null);
 </script>
 
 <template>
@@ -45,6 +52,15 @@ const themeNames: ThemeName[] = ["frost", "morning-dew", "aurora", "dusk", "deep
         </svg>
       </button>
     </div>
+    <WorkspaceSwitcher
+      :current-workspace="currentWorkspace"
+      :active="activeWorkspaces"
+      :archived="archivedWorkspaces"
+      :is-agent-running="isAgentRunning"
+      @select="emit('selectWorkspace', $event)"
+      @open-manager="emit('openWorkspaceManager')"
+      @new-workspace="emit('newWorkspace')"
+    />
     <div class="sidebar-actions">
       <button class="btn-new-chat" @click="emit('newConversation')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -63,12 +79,28 @@ const themeNames: ThemeName[] = ["frost", "morning-dew", "aurora", "dusk", "deep
           :class="{ active: conv.id === currentConvId }"
           @click="emit('selectConversation', conv.id)"
         >
-          <span class="conv-item-icon">💬</span>
+          <span
+            class="conv-item-icon"
+            :style="{ color: workspaceColor(currentWorkspace?.id ?? 'default') }"
+          >●</span>
           <span class="conv-item-text">{{ conv.title }}</span>
+          <button
+            class="conv-more"
+            @click.stop="openMenuFor = openMenuFor === conv.id ? null : conv.id"
+          >⋮</button>
+          <div v-if="openMenuFor === conv.id" class="conv-menu" @click.stop>
+            <div
+              v-for="w in activeWorkspaces"
+              :key="w.id"
+              class="conv-menu-item"
+              @click="emit('moveConversation', conv.id, w.id)"
+            >移动到「{{ w.name }}」</div>
+            <div class="conv-menu-item danger" @click="emit('deleteConversation', conv.id)">删除</div>
+          </div>
         </div>
       </template>
       <div v-if="groupedConversations.length === 0" class="no-convs">
-        暂无对话，点击上方按钮开始
+        该工作空间暂无对话
       </div>
     </div>
     <div class="sidebar-footer">
@@ -140,6 +172,7 @@ const themeNames: ThemeName[] = ["frost", "morning-dew", "aurora", "dusk", "deep
 }
 .no-convs { text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px; }
 .conv-item {
+  position: relative;
   padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer;
   font-size: 13px; color: var(--text-secondary); margin-bottom: 2px;
   display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden;
@@ -150,6 +183,23 @@ const themeNames: ThemeName[] = ["frost", "morning-dew", "aurora", "dusk", "deep
 .conv-item-icon { opacity: 0.4; flex-shrink: 0; }
 .conv-item.active .conv-item-icon { opacity: 1; }
 .conv-item-text { overflow: hidden; text-overflow: ellipsis; }
+.conv-more {
+  margin-left: auto; width: 20px; height: 20px; border: none; border-radius: 4px;
+  background: transparent; color: var(--text-muted); cursor: pointer; opacity: 0;
+  flex-shrink: 0; line-height: 1;
+}
+.conv-item:hover .conv-more { opacity: 1; }
+.conv-menu {
+  position: absolute; right: 8px; top: calc(100% - 2px); z-index: 70;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2); padding: 4px; min-width: 150px;
+}
+.conv-menu-item {
+  padding: 6px 10px; border-radius: 4px; font-size: 12px; cursor: pointer;
+  color: var(--text-secondary); white-space: nowrap;
+}
+.conv-menu-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.conv-menu-item.danger { color: #e05b5b; }
 
 .sidebar-footer {
   padding: 12px 16px; border-top: 1px solid var(--border);
