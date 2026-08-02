@@ -117,6 +117,7 @@ npm run tauri build   # 生产构建
 ```bash
 npm run typecheck   # 类型检查，要求退出码为 0
 npm run build       # 生产构建（已包含 typecheck + vitest + vite build）
+cd src-tauri && cargo test   # Rust 后端单元与 MCP 集成测试，要求退出码为 0
 ```
 
 如需单独运行前端单元测试：`npm test`（vitest run，Agent 相关回归测试位于 `src/composables/*.test.ts`）。
@@ -126,6 +127,7 @@ npm run build       # 生产构建（已包含 typecheck + vitest + vite build�
 1. 启动应用（`npm run tauri dev` 或浏览器模式 `npx vite --port 1422 --host 127.0.0.1`）
 2. 发送一条消息，确认 SSE 流式响应逐 token 渲染、无控制台错误
 3. 按变更范围验证对应功能，例如对话导出 / 分享、文件上传、主题切换
+4. 工作空间：切换工作空间 → 会话列表按空间过滤；新建空间可复制来源设置与 MCP；归档后只读横幅并禁止新建/发送，恢复后可对话；彻底删除需输入空间名二次确认
 
 验收全部通过后才能提交；本项目不使用外部 CI 服务，验收在本地提交前完成。
 

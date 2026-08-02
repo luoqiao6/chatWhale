@@ -17,7 +17,7 @@ npm run tauri dev      # Tauri 桌面开发模式
 
 ## 核心 Owner
 
-- `src/composables/`：前端状态与业务逻辑（useChat、useConversations、useMarkdown 等）
+- `src/composables/`：前端状态与业务逻辑（useChat、useConversations、useWorkspaces、useMarkdown 等）
 - `src-tauri/src/`：Rust 后端（db、sse、lib 等）
 
 ## 文档路由
