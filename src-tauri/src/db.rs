@@ -217,17 +217,17 @@ impl Database {
             .context("Failed to commit workspace delete")
     }
 
-    pub fn get_conversations(&self) -> Result<Vec<Conversation>> {
+    pub fn get_conversations(&self, workspace_id: &str) -> Result<Vec<Conversation>> {
         let mut stmt = self
             .conn
             .prepare(
-                "SELECT id, title, model, created_at, updated_at, messages
-                 FROM conversations ORDER BY updated_at DESC",
+                "SELECT id, title, model, created_at, updated_at, messages, workspace_id
+                 FROM conversations WHERE workspace_id = ?1 ORDER BY updated_at DESC",
             )
             .context("Failed to prepare query")?;
 
         let rows = stmt
-            .query_map([], |row| {
+            .query_map(params![workspace_id], |row| {
                 Ok(Conversation {
                     id: row.get(0)?,
                     title: row.get(1)?,
@@ -235,6 +235,7 @@ impl Database {
                     created_at: row.get(3)?,
                     updated_at: row.get(4)?,
                     messages: row.get(5)?,
+                    workspace_id: row.get(6)?,
                 })
             })
             .context("Failed to query conversations")?;
@@ -249,7 +250,7 @@ impl Database {
     pub fn get_conversation(&self, id: &str) -> Result<Conversation> {
         self.conn
             .query_row(
-                "SELECT id, title, model, created_at, updated_at, messages
+                "SELECT id, title, model, created_at, updated_at, messages, workspace_id
                  FROM conversations WHERE id = ?1",
                 params![id],
                 |row| {
@@ -260,21 +261,27 @@ impl Database {
                         created_at: row.get(3)?,
                         updated_at: row.get(4)?,
                         messages: row.get(5)?,
+                        workspace_id: row.get(6)?,
                     })
                 },
             )
             .context("Conversation not found")
     }
 
-    pub fn create_conversation(&self, title: &str, model: &str) -> Result<Conversation> {
+    pub fn create_conversation(
+        &self,
+        workspace_id: &str,
+        title: &str,
+        model: &str,
+    ) -> Result<Conversation> {
         let id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now().timestamp_millis();
 
         self.conn
             .execute(
-                "INSERT INTO conversations (id, title, model, created_at, updated_at, messages)
-                 VALUES (?1, ?2, ?3, ?4, ?5, '[]')",
-                params![id, title, model, now, now],
+                "INSERT INTO conversations (id, title, model, created_at, updated_at, messages, workspace_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, '[]', ?6)",
+                params![id, title, model, now, now, workspace_id],
             )
             .context("Failed to create conversation")?;
 
@@ -285,7 +292,18 @@ impl Database {
             created_at: now,
             updated_at: now,
             messages: "[]".to_string(),
+            workspace_id: workspace_id.to_string(),
         })
+    }
+
+    pub fn move_conversation(&self, id: &str, workspace_id: &str) -> Result<()> {
+        self.conn
+            .execute(
+                "UPDATE conversations SET workspace_id = ?1, updated_at = ?2 WHERE id = ?3",
+                params![workspace_id, chrono::Utc::now().timestamp_millis(), id],
+            )
+            .context("Failed to move conversation")?;
+        Ok(())
     }
 
     pub fn update_conversation(
@@ -342,13 +360,13 @@ impl Database {
         Ok(Self { conn })
     }
 
-    pub fn get_all_agent_settings(&self) -> Result<HashMap<String, String>> {
+    pub fn get_all_agent_settings(&self, workspace_id: &str) -> Result<HashMap<String, String>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT key, value FROM agent_settings")
+            .prepare("SELECT key, value FROM agent_settings WHERE workspace_id = ?1")
             .context("prepare agent settings")?;
         let rows = stmt
-            .query_map([], |row| {
+            .query_map(params![workspace_id], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
             })
             .context("query agent settings")?;
@@ -360,46 +378,50 @@ impl Database {
         Ok(map)
     }
 
-    pub fn get_agent_setting(&self, key: &str) -> Result<Option<String>> {
+    pub fn get_agent_setting(
+        &self,
+        workspace_id: &str,
+        key: &str,
+    ) -> Result<Option<String>> {
         self.conn
             .query_row(
-                "SELECT value FROM agent_settings WHERE key = ?1",
-                params![key],
+                "SELECT value FROM agent_settings WHERE workspace_id = ?1 AND key = ?2",
+                params![workspace_id, key],
                 |row| row.get(0),
             )
             .optional()
             .context("query agent setting")
     }
 
-    pub fn set_agent_setting(&self, key: &str, value: &str) -> Result<()> {
+    pub fn set_agent_setting(&self, workspace_id: &str, key: &str, value: &str) -> Result<()> {
         self.conn
             .execute(
-                "INSERT INTO agent_settings (key, value) VALUES (?1, ?2)
+                "INSERT INTO agent_settings (workspace_id, key, value) VALUES (?1, ?2, ?3)
                  ON CONFLICT(workspace_id, key) DO UPDATE SET value = excluded.value",
-                params![key, value],
+                params![workspace_id, key, value],
             )
             .context("upsert agent setting")?;
         Ok(())
     }
 
-    pub fn list_mcp_servers(&self) -> Result<Vec<McpServerConfig>> {
+    pub fn list_mcp_servers(&self, workspace_id: &str) -> Result<Vec<McpServerConfig>> {
         let mut stmt = self
             .conn
             .prepare(
-                "SELECT id, name, command, args, env, cwd, timeout, transport, enabled
-                 FROM mcp_servers ORDER BY created_at",
+                "SELECT id, name, command, args, env, cwd, timeout, transport, enabled, workspace_id
+                 FROM mcp_servers WHERE workspace_id = ?1 ORDER BY created_at",
             )
             .context("prepare mcp servers")?;
         let rows = stmt
-            .query_map([], row_to_server)
+            .query_map(params![workspace_id], row_to_server)
             .context("query mcp servers")?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(anyhow::Error::from)
     }
 
-    pub fn get_enabled_mcp_servers(&self) -> Result<Vec<McpServerConfig>> {
+    pub fn get_enabled_mcp_servers(&self, workspace_id: &str) -> Result<Vec<McpServerConfig>> {
         Ok(self
-            .list_mcp_servers()?
+            .list_mcp_servers(workspace_id)?
             .into_iter()
             .filter(|s| s.enabled)
             .collect())
@@ -409,8 +431,8 @@ impl Database {
         let now = chrono::Utc::now().timestamp_millis();
         self.conn
             .execute(
-                "INSERT INTO mcp_servers (id, name, command, args, env, cwd, timeout, transport, enabled, created_at, updated_at)
-                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+                "INSERT INTO mcp_servers (id, name, command, args, env, cwd, timeout, transport, enabled, created_at, updated_at, workspace_id)
+                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
                 params![
                     cfg.id,
                     cfg.name,
@@ -422,7 +444,8 @@ impl Database {
                     transport_str(cfg),
                     cfg.enabled as i64,
                     now,
-                    now
+                    now,
+                    cfg.workspace_id
                 ],
             )
             .context("insert mcp server")?;
@@ -571,6 +594,7 @@ fn row_to_server(row: &rusqlite::Row) -> rusqlite::Result<McpServerConfig> {
     let transport: String = row.get(7)?;
     Ok(McpServerConfig {
         id: row.get(0)?,
+        workspace_id: row.get(9)?,
         name: row.get(1)?,
         command: row.get(2)?,
         args: serde_json::from_str(&row.get::<_, String>(3)?).unwrap_or_default(),
@@ -700,16 +724,95 @@ mod tests {
     }
 
     #[test]
+    fn settings_and_mcp_are_scoped_by_workspace() {
+        let db = Database::in_memory().unwrap();
+        db.create_workspace("w1", "项目A", "/tmp/a").unwrap();
+        db.create_workspace("w2", "项目B", "/tmp/b").unwrap();
+
+        db.set_agent_setting("w1", "agent.max_iterations", "3").unwrap();
+        db.set_agent_setting("w2", "agent.max_iterations", "7").unwrap();
+        assert_eq!(
+            db.get_all_agent_settings("w1").unwrap().get("agent.max_iterations").map(|s| s.as_str()),
+            Some("3")
+        );
+        assert_eq!(
+            db.get_all_agent_settings("w2").unwrap().get("agent.max_iterations").map(|s| s.as_str()),
+            Some("7")
+        );
+        // 各空间至少有自己的 seed 键，但互不包含对方的值
+        assert!(db.get_all_agent_settings("w1").unwrap().len() > 1);
+
+        let server = |id: &str, ws: &str| McpServerConfig {
+            id: id.into(),
+            workspace_id: ws.into(),
+            name: "fs".into(),
+            command: "npx".into(),
+            args: vec![],
+            env: Default::default(),
+            cwd: None,
+            timeout: 30,
+            transport: crate::agent::mcp::types::TransportKind::Stdio,
+            enabled: true,
+        };
+        db.add_mcp_server(&server("s1", "w1")).unwrap();
+        db.add_mcp_server(&server("s2", "w2")).unwrap();
+        assert_eq!(db.list_mcp_servers("w1").unwrap().len(), 1);
+        assert_eq!(db.list_mcp_servers("w2").unwrap().len(), 1);
+        assert_eq!(db.get_enabled_mcp_servers("w1").unwrap()[0].id, "s1");
+    }
+
+    #[test]
+    fn conversations_are_scoped_and_movable() {
+        let db = Database::in_memory().unwrap();
+        db.create_workspace("w1", "项目A", "/tmp/a").unwrap();
+        db.create_workspace("w2", "项目B", "/tmp/b").unwrap();
+        let c = db.create_conversation("w1", "会话A", "m").unwrap();
+        assert_eq!(db.get_conversations("w1").unwrap().len(), 1);
+        assert_eq!(db.get_conversations("w2").unwrap().len(), 0);
+
+        db.move_conversation(&c.id, "w2").unwrap();
+        assert_eq!(db.get_conversations("w1").unwrap().len(), 0);
+        assert_eq!(db.get_conversations("w2").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn delete_workspace_cascades() {
+        let db = Database::in_memory().unwrap();
+        db.create_workspace("w1", "项目A", "/tmp/a").unwrap();
+        db.create_conversation("w1", "会话", "m").unwrap();
+        db.set_agent_setting("w1", "agent.max_iterations", "3").unwrap();
+        let server = McpServerConfig {
+            id: "s1".into(),
+            workspace_id: "w1".into(),
+            name: "fs".into(),
+            command: "npx".into(),
+            args: vec![],
+            env: Default::default(),
+            cwd: None,
+            timeout: 30,
+            transport: crate::agent::mcp::types::TransportKind::Stdio,
+            enabled: true,
+        };
+        db.add_mcp_server(&server).unwrap();
+
+        db.delete_workspace("w1").unwrap();
+        assert!(db.get_workspace("w1").unwrap().is_none());
+        assert_eq!(db.get_conversations("w1").unwrap().len(), 0);
+        assert_eq!(db.get_all_agent_settings("w1").unwrap().len(), 0);
+        assert_eq!(db.list_mcp_servers("w1").unwrap().len(), 0);
+    }
+
+    #[test]
     fn agent_settings_roundtrip() {
         let db = Database::in_memory().unwrap();
-        db.set_agent_setting("agent.workspace_root", "/tmp")
+        db.set_agent_setting("default", "agent.max_iterations", "7")
             .unwrap();
         assert_eq!(
-            db.get_agent_setting("agent.workspace_root").unwrap(),
-            Some("/tmp".to_string())
+            db.get_agent_setting("default", "agent.max_iterations").unwrap(),
+            Some("7".to_string())
         );
-        let all = db.get_all_agent_settings().unwrap();
-        assert!(all.contains_key("agent.workspace_root"));
+        let all = db.get_all_agent_settings("default").unwrap();
+        assert!(all.contains_key("agent.max_iterations"));
     }
 
     #[test]
@@ -717,6 +820,7 @@ mod tests {
         let db = Database::in_memory().unwrap();
         let cfg = McpServerConfig {
             id: "s1".into(),
+            workspace_id: "default".into(),
             name: "S1".into(),
             command: "bash".into(),
             args: vec![],
@@ -727,9 +831,9 @@ mod tests {
             enabled: true,
         };
         db.add_mcp_server(&cfg).unwrap();
-        assert_eq!(db.list_mcp_servers().unwrap().len(), 1);
-        assert_eq!(db.get_enabled_mcp_servers().unwrap().len(), 1);
+        assert_eq!(db.list_mcp_servers("default").unwrap().len(), 1);
+        assert_eq!(db.get_enabled_mcp_servers("default").unwrap().len(), 1);
         db.remove_mcp_server("s1").unwrap();
-        assert!(db.list_mcp_servers().unwrap().is_empty());
+        assert!(db.list_mcp_servers("default").unwrap().is_empty());
     }
 }

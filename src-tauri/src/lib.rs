@@ -28,6 +28,7 @@ pub struct Conversation {
     pub created_at: i64,
     pub updated_at: i64,
     pub messages: String, // JSON string of messages array
+    pub workspace_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -67,9 +68,12 @@ pub struct ChatRequest {
 }
 
 #[tauri::command]
-fn get_conversations(state: State<AppState>) -> Result<Vec<Conversation>, String> {
+fn get_conversations(
+    state: State<AppState>,
+    workspace_id: String,
+) -> Result<Vec<Conversation>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    db.get_conversations().map_err(|e| e.to_string())
+    db.get_conversations(&workspace_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -126,12 +130,23 @@ fn get_conversation(state: State<AppState>, id: String) -> Result<Conversation, 
 #[tauri::command]
 fn create_conversation(
     state: State<AppState>,
+    workspace_id: String,
     title: String,
     model: String,
 ) -> Result<Conversation, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    db.create_conversation(&title, &model)
+    db.create_conversation(&workspace_id, &title, &model)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn move_conversation(
+    state: State<AppState>,
+    id: String,
+    workspace_id: String,
+) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.move_conversation(&id, &workspace_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -159,9 +174,12 @@ fn list_builtin_tools() -> Result<Vec<ToolDef>, String> {
 }
 
 #[tauri::command]
-fn list_mcp_servers(state: State<AppState>) -> Result<Vec<McpServerConfig>, String> {
+fn list_mcp_servers(
+    state: State<AppState>,
+    workspace_id: String,
+) -> Result<Vec<McpServerConfig>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    db.list_mcp_servers().map_err(|e| e.to_string())
+    db.list_mcp_servers(&workspace_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -183,19 +201,23 @@ fn update_mcp_server(state: State<AppState>, server: McpServerConfig) -> Result<
 }
 
 #[tauri::command]
-fn get_agent_settings(state: State<AppState>) -> Result<HashMap<String, String>, String> {
+fn get_agent_settings(
+    state: State<AppState>,
+    workspace_id: String,
+) -> Result<HashMap<String, String>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    db.get_all_agent_settings().map_err(|e| e.to_string())
+    db.get_all_agent_settings(&workspace_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn set_agent_settings(
     state: State<AppState>,
+    workspace_id: String,
     settings: HashMap<String, String>,
 ) -> Result<(), String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     for (k, v) in settings {
-        db.set_agent_setting(&k, &v).map_err(|e| e.to_string())?;
+        db.set_agent_setting(&workspace_id, &k, &v).map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -220,11 +242,11 @@ async fn agent_chat(
     }
     let settings_map = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        db.get_all_agent_settings().map_err(|e| e.to_string())?
+        db.get_all_agent_settings("default").map_err(|e| e.to_string())?
     };
     let mcp_configs = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        db.get_enabled_mcp_servers().map_err(|e| e.to_string())?
+        db.get_enabled_mcp_servers("default").map_err(|e| e.to_string())?
     };
     let settings = load_agent_settings(&settings_map);
     let window_label = window.label().to_string();
@@ -273,6 +295,7 @@ pub fn run() {
             delete_workspace,
             get_conversations,
             get_conversation,
+            move_conversation,
             create_conversation,
             update_conversation,
             delete_conversation,

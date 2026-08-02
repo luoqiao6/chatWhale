@@ -9,6 +9,7 @@ async fn fake_server_list_and_call_tools() {
         .join("tests/fixtures/fake_mcp_server.sh");
     let cfg = McpServerConfig {
         id: "fake".into(),
+        workspace_id: "default".into(),
         name: "fake".into(),
         command: "bash".into(),
         args: vec![fixture.display().to_string()],

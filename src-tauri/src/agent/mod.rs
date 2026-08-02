@@ -339,7 +339,7 @@ async fn approve_agent_md_if_needed(
         let state = app.state::<crate::AppState>();
         let db = state.db.lock();
         if let Ok(db) = db {
-            if let Ok(Some(v)) = db.get_agent_setting("agent.approved_agentmd") {
+            if let Ok(Some(v)) = db.get_agent_setting("default", "agent.approved_agentmd") {
                 if v.split(',').any(|h| h == hash) {
                     return true;
                 }
@@ -363,7 +363,7 @@ async fn approve_agent_md_if_needed(
             let db = state.db.lock();
             if let Ok(db) = db {
                 let cur = db
-                    .get_agent_setting("agent.approved_agentmd")
+                    .get_agent_setting("default", "agent.approved_agentmd")
                     .ok()
                     .flatten()
                     .unwrap_or_default();
@@ -375,7 +375,7 @@ async fn approve_agent_md_if_needed(
                 if !list.iter().any(|h| h == hash) {
                     list.push(hash.to_string());
                 }
-                let _ = db.set_agent_setting("agent.approved_agentmd", &list.join(","));
+                let _ = db.set_agent_setting("default", "agent.approved_agentmd", &list.join(","));
             }
             true
         }

@@ -13,6 +13,8 @@ pub enum TransportKind {
 #[serde(rename_all = "camelCase")]
 pub struct McpServerConfig {
     pub id: String,
+    #[serde(default = "default_workspace_id")]
+    pub workspace_id: String,
     pub name: String,
     pub command: String,
     #[serde(default)]
@@ -31,6 +33,9 @@ pub struct McpServerConfig {
 
 fn default_timeout() -> u64 {
     30
+}
+fn default_workspace_id() -> String {
+    "default".into()
 }
 fn default_enabled() -> bool {
     true
