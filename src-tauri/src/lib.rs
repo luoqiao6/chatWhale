@@ -41,6 +41,17 @@ pub struct Workspace {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WorkspaceSummary {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub archived: bool,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub conversation_count: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatRequest {
     pub messages: serde_json::Value,
     pub model: String,
@@ -59,6 +70,51 @@ pub struct ChatRequest {
 fn get_conversations(state: State<AppState>) -> Result<Vec<Conversation>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.get_conversations().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_workspaces(state: State<AppState>) -> Result<Vec<WorkspaceSummary>, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.list_workspaces().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_workspace(
+    state: State<AppState>,
+    name: String,
+    path: String,
+) -> Result<Workspace, String> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.create_workspace(&id, &name, &path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_workspace(
+    state: State<AppState>,
+    id: String,
+    name: Option<String>,
+    path: Option<String>,
+) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.update_workspace(&id, name.as_deref(), path.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_workspace_archived(
+    state: State<AppState>,
+    id: String,
+    archived: bool,
+) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.set_workspace_archived(&id, archived).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_workspace(state: State<AppState>, id: String) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.delete_workspace(&id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -210,6 +266,11 @@ pub fn run() {
             agent: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
+            list_workspaces,
+            create_workspace,
+            update_workspace,
+            set_workspace_archived,
+            delete_workspace,
             get_conversations,
             get_conversation,
             create_conversation,

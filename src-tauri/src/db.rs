@@ -4,7 +4,7 @@ use rusqlite::OptionalExtension;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::Conversation;
+use crate::{Conversation, Workspace, WorkspaceSummary};
 
 use crate::agent::mcp::types::McpServerConfig;
 
@@ -70,6 +70,151 @@ impl Database {
         let path = PathBuf::from(home).join(".chatwhale");
         std::fs::create_dir_all(&path).ok();
         Ok(path.join("chatwhale.db"))
+    }
+
+    pub fn list_workspaces(&self) -> Result<Vec<WorkspaceSummary>> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT w.id, w.name, w.path, w.archived, w.created_at, w.updated_at,
+                        (SELECT COUNT(*) FROM conversations c WHERE c.workspace_id = w.id)
+                 FROM workspaces w ORDER BY w.created_at",
+            )
+            .context("Failed to prepare workspaces query")?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(WorkspaceSummary {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    path: row.get(2)?,
+                    archived: row.get::<_, i64>(3)? != 0,
+                    created_at: row.get(4)?,
+                    updated_at: row.get(5)?,
+                    conversation_count: row.get(6)?,
+                })
+            })
+            .context("Failed to query workspaces")?;
+        rows.collect::<rusqlite::Result<Vec<_>>>().map_err(anyhow::Error::from)
+    }
+
+    pub fn get_workspace(&self, id: &str) -> Result<Option<Workspace>> {
+        self.conn
+            .query_row(
+                "SELECT id, name, path, archived, created_at, updated_at
+                 FROM workspaces WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok(Workspace {
+                        id: row.get(0)?,
+                        name: row.get(1)?,
+                        path: row.get(2)?,
+                        archived: row.get::<_, i64>(3)? != 0,
+                        created_at: row.get(4)?,
+                        updated_at: row.get(5)?,
+                    })
+                },
+            )
+            .optional()
+            .context("Failed to query workspace")
+    }
+
+    pub fn create_workspace(&self, id: &str, name: &str, path: &str) -> Result<Workspace> {
+        let now = chrono::Utc::now().timestamp_millis();
+        self.conn
+            .execute(
+                "INSERT INTO workspaces (id, name, path, archived, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, 0, ?4, ?4)",
+                params![id, name, path, now],
+            )
+            .context("Failed to create workspace")?;
+        // 新空间按默认键 seed，保证各空间拥有独立完整的设置集合
+        for (key, value) in crate::agent::types::AGENT_SETTING_KEYS {
+            self.conn
+                .execute(
+                    "INSERT OR IGNORE INTO agent_settings (workspace_id, key, value)
+                     VALUES (?1, ?2, ?3)",
+                    params![id, key, value],
+                )
+                .context("Failed to seed agent settings")?;
+        }
+        Ok(Workspace {
+            id: id.to_string(),
+            name: name.to_string(),
+            path: path.to_string(),
+            archived: false,
+            created_at: now,
+            updated_at: now,
+        })
+    }
+
+    pub fn update_workspace(
+        &self,
+        id: &str,
+        name: Option<&str>,
+        path: Option<&str>,
+    ) -> Result<()> {
+        let now = chrono::Utc::now().timestamp_millis();
+        if let Some(n) = name {
+            self.conn
+                .execute(
+                    "UPDATE workspaces SET name = ?1, updated_at = ?2 WHERE id = ?3",
+                    params![n, now, id],
+                )
+                .context("Failed to update workspace name")?;
+        }
+        if let Some(p) = path {
+            self.conn
+                .execute(
+                    "UPDATE workspaces SET path = ?1, updated_at = ?2 WHERE id = ?3",
+                    params![p, now, id],
+                )
+                .context("Failed to update workspace path")?;
+        }
+        Ok(())
+    }
+
+    pub fn set_workspace_archived(&self, id: &str, archived: bool) -> Result<()> {
+        if id == "default" && archived {
+            anyhow::bail!("默认工作空间不可归档");
+        }
+        self.conn
+            .execute(
+                "UPDATE workspaces SET archived = ?1, updated_at = ?2 WHERE id = ?3",
+                params![archived as i64, chrono::Utc::now().timestamp_millis(), id],
+            )
+            .context("Failed to update workspace archived")?;
+        Ok(())
+    }
+
+    pub fn delete_workspace(&self, id: &str) -> Result<()> {
+        if id == "default" {
+            anyhow::bail!("默认工作空间不可删除");
+        }
+        self.conn
+            .execute_batch("BEGIN IMMEDIATE")
+            .context("Failed to begin workspace delete")?;
+        let result = (|| -> Result<()> {
+            self.conn
+                .execute("DELETE FROM conversations WHERE workspace_id = ?1", params![id])
+                .context("Failed to delete workspace conversations")?;
+            self.conn
+                .execute("DELETE FROM agent_settings WHERE workspace_id = ?1", params![id])
+                .context("Failed to delete workspace settings")?;
+            self.conn
+                .execute("DELETE FROM mcp_servers WHERE workspace_id = ?1", params![id])
+                .context("Failed to delete workspace mcp servers")?;
+            self.conn
+                .execute("DELETE FROM workspaces WHERE id = ?1", params![id])
+                .context("Failed to delete workspace")?;
+            Ok(())
+        })();
+        if result.is_err() {
+            let _ = self.conn.execute_batch("ROLLBACK");
+            return result;
+        }
+        self.conn
+            .execute_batch("COMMIT")
+            .context("Failed to commit workspace delete")
     }
 
     pub fn get_conversations(&self) -> Result<Vec<Conversation>> {
@@ -528,6 +673,30 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM workspaces", [], |r| r.get(0))
             .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn workspace_crud_and_default_protection() {
+        let db = Database::in_memory().unwrap();
+
+        let ws = db.create_workspace("w1", "项目A", "/tmp/a").unwrap();
+        assert_eq!(ws.name, "项目A");
+        assert!(!ws.archived);
+
+        let all = db.list_workspaces().unwrap();
+        assert_eq!(all.len(), 2); // default + w1
+        let w1 = all.iter().find(|w| w.id == "w1").unwrap();
+        assert_eq!(w1.conversation_count, 0);
+
+        db.update_workspace("w1", Some("项目A改"), None).unwrap();
+        assert_eq!(db.get_workspace("w1").unwrap().unwrap().name, "项目A改");
+
+        db.set_workspace_archived("w1", true).unwrap();
+        assert!(db.get_workspace("w1").unwrap().unwrap().archived);
+
+        // 默认空间不可归档/删除
+        assert!(db.set_workspace_archived("default", true).is_err());
+        assert!(db.delete_workspace("default").is_err());
     }
 
     #[test]
