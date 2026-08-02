@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import type { McpServerConfig } from "../types";
+import { normalizeAgentSettings } from "../composables/useAgentSettings";
 
 const emit = defineEmits<{ close: [] }>();
 
@@ -54,7 +55,9 @@ async function save() {
     JSON.parse(settings.value["agent.command_whitelist"] || "[]");
     JSON.parse(settings.value["agent.sensitive_paths"] || "[]");
     const { invoke } = await import("@tauri-apps/api/core");
-    await invoke("set_agent_settings", { settings: settings.value });
+    await invoke("set_agent_settings", {
+      settings: normalizeAgentSettings(settings.value),
+    });
     emit("close");
   } catch (e) {
     errorMsg.value = String(e);
