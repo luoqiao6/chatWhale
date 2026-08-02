@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onUnmounted } from "vue";
 import { useConversations } from "../composables/useConversations";
-import { useAgent } from "../composables/useAgent";
+import { useAgent, watchAgentLoading } from "../composables/useAgent";
 import ChatInput from "./ChatInput.vue";
 import MessageBubble from "./MessageBubble.vue";
 import type { Message, ToolCall } from "../types";
@@ -102,6 +102,7 @@ const {
 } = useAgent(messages, saveMessages, (p) => {
   toolSources.value = { ...toolSources.value, [p.id]: p.source };
 });
+watchAgentLoading(isLoading, isAgentRunning);
 
 const toolResults = computed(() => {
   const map: Record<string, string> = {};

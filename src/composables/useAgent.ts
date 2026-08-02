@@ -1,4 +1,4 @@
-import { ref, type Ref } from "vue";
+import { ref, watch, type Ref } from "vue";
 import type {
   AgentChatParams,
   AgentDonePayload,
@@ -22,6 +22,21 @@ interface ToolResultPayload {
   name: string;
   result: string;
   error?: string | null;
+}
+
+/**
+ * 将 isLoading 与 Agent 运行状态联动：Agent 结束（正常/取消/出错）即复位 loading，
+ * 避免 handleSend 的 `isLoading` 守卫永久拦截后续发送。
+ */
+export function watchAgentLoading(
+  isLoading: Ref<boolean>,
+  isAgentRunning: Ref<boolean>,
+) {
+  watch(isAgentRunning, (running) => {
+    if (!running) {
+      isLoading.value = false;
+    }
+  });
 }
 
 export function useAgent(
