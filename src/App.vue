@@ -8,7 +8,7 @@ import Settings from "./components/Settings.vue";
 import ModelManager from "./components/ModelManager.vue";
 import AgentSettings from "./components/AgentSettings.vue";
 import WorkspaceManager from "./components/WorkspaceManager.vue";
-import type { ThemeName } from "./types";
+import type { ThemeName, WorkspaceSummary } from "./types";
 
 const {
   workspaces,
@@ -42,7 +42,7 @@ const pathMissing = ref(false);
 const workspaceSummaries = computed(() =>
   workspaces.value.map((w) => ({
     ...w,
-    conversation_count: 0,
+    conversation_count: (w as WorkspaceSummary).conversation_count ?? 0,
   })),
 );
 
@@ -104,6 +104,11 @@ function openAgentSettingsFor(workspaceId: string) {
   showAgentSettings.value = true;
 }
 
+function openSidebarAgentSettings() {
+  agentSettingsWorkspaceId.value = null;
+  showAgentSettings.value = true;
+}
+
 function selectModel(modelId: string) {
   currentModel.value = modelId;
   showModelManager.value = false;
@@ -154,7 +159,7 @@ function syncBorders() {
       @select-conversation="selectConversation"
       @new-conversation="newConversation"
       @open-settings="showSettings = true"
-      @open-agent-settings="showAgentSettings = true"
+      @open-agent-settings="openSidebarAgentSettings"
       @open-model-manager="showModelManager = true"
       @select-workspace="selectWorkspace"
       @open-workspace-manager="showWorkspaceManager = true"
