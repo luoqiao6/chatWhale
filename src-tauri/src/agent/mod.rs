@@ -95,13 +95,23 @@ pub async fn run_agent(
     params: AgentChatParams,
     settings: AgentSettings,
     mcp_configs: Vec<crate::agent::mcp::types::McpServerConfig>,
+    workspace_id: String,
 ) {
     let runtime = AgentRuntime {
         cancellation: CancellationToken::new(),
         usage: Arc::new(UsageCounter::default()),
         window_label: window_label.clone(),
     };
-    run_agent_inner(&app, &window_label, &runtime, &params, &settings, mcp_configs).await;
+    run_agent_inner(
+        &app,
+        &window_label,
+        &runtime,
+        &params,
+        &settings,
+        mcp_configs,
+        &workspace_id,
+    )
+    .await;
     let state = app.state::<crate::AppState>();
     let mut guard = state.agent.lock().unwrap_or_else(|p| p.into_inner());
     *guard = None;
@@ -137,6 +147,7 @@ async fn run_agent_inner(
     params: &AgentChatParams,
     settings: &AgentSettings,
     mcp_configs: Vec<crate::agent::mcp::types::McpServerConfig>,
+    workspace_id: &str,
 ) {
     let approval = global_manager();
     let mut mcp = McpManager::new();
@@ -154,7 +165,16 @@ async fn run_agent_inner(
     let mut system_prompt = agent_config.system_prompt_base();
     if let Some(md) = &agent_config.agent_md_content {
         let hash = content_hash(md);
-        if approve_agent_md_if_needed(app, window_label, runtime, settings, approval, &hash).await
+        if approve_agent_md_if_needed(
+            app,
+            window_label,
+            runtime,
+            settings,
+            approval,
+            &hash,
+            workspace_id,
+        )
+        .await
         {
             if let Some(frag) = agent_config.project_agent_md_fragment() {
                 system_prompt.push_str(&frag);
@@ -334,12 +354,13 @@ async fn approve_agent_md_if_needed(
     settings: &AgentSettings,
     approval: &ApprovalManager,
     hash: &str,
+    workspace_id: &str,
 ) -> bool {
     {
         let state = app.state::<crate::AppState>();
         let db = state.db.lock();
         if let Ok(db) = db {
-            if let Ok(Some(v)) = db.get_agent_setting("default", "agent.approved_agentmd") {
+            if let Ok(Some(v)) = db.get_agent_setting(workspace_id, "agent.approved_agentmd") {
                 if v.split(',').any(|h| h == hash) {
                     return true;
                 }
@@ -363,7 +384,7 @@ async fn approve_agent_md_if_needed(
             let db = state.db.lock();
             if let Ok(db) = db {
                 let cur = db
-                    .get_agent_setting("default", "agent.approved_agentmd")
+                    .get_agent_setting(workspace_id, "agent.approved_agentmd")
                     .ok()
                     .flatten()
                     .unwrap_or_default();
@@ -375,7 +396,7 @@ async fn approve_agent_md_if_needed(
                 if !list.iter().any(|h| h == hash) {
                     list.push(hash.to_string());
                 }
-                let _ = db.set_agent_setting("default", "agent.approved_agentmd", &list.join(","));
+                let _ = db.set_agent_setting(workspace_id, "agent.approved_agentmd", &list.join(","));
             }
             true
         }

@@ -3,7 +3,7 @@ mod sse;
 pub mod agent;
 
 use crate::agent::approval;
-use crate::agent::types::{load_agent_settings, AgentChatParams, UsageCounter};
+use crate::agent::types::{AgentChatParams, UsageCounter};
 use crate::agent::AgentRuntime;
 use db::Database;
 use serde::{Deserialize, Serialize};
@@ -140,6 +140,7 @@ fn create_conversation(
     model: String,
 ) -> Result<Conversation, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
+    ensure_workspace_active(&db, &workspace_id)?;
     db.create_conversation(&workspace_id, &title, &model)
         .map_err(|e| e.to_string())
 }
@@ -221,8 +222,20 @@ fn set_agent_settings(
     settings: HashMap<String, String>,
 ) -> Result<(), String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
+    ensure_workspace_active(&db, &workspace_id)?;
     for (k, v) in settings {
         db.set_agent_setting(&workspace_id, &k, &v).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn ensure_workspace_active(db: &Database, workspace_id: &str) -> Result<(), String> {
+    let ws = db
+        .get_workspace(workspace_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "工作空间不存在".to_string())?;
+    if ws.archived {
+        return Err("该工作空间已归档，请先恢复后再修改设置".into());
     }
     Ok(())
 }
@@ -233,6 +246,7 @@ async fn agent_chat(
     window: tauri::Window,
     state: State<'_, AppState>,
     params: AgentChatParams,
+    workspace_id: String,
 ) -> Result<(), String> {
     {
         let mut guard = state.agent.lock().map_err(|e| e.to_string())?;
@@ -245,18 +259,13 @@ async fn agent_chat(
             window_label: window.label().to_string(),
         });
     }
-    let settings_map = {
+    let (settings, mcp_configs) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        db.get_all_agent_settings("default").map_err(|e| e.to_string())?
+        db.build_agent_settings(&workspace_id).map_err(|e| e.to_string())?
     };
-    let mcp_configs = {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        db.get_enabled_mcp_servers("default").map_err(|e| e.to_string())?
-    };
-    let settings = load_agent_settings(&settings_map);
     let window_label = window.label().to_string();
     tauri::async_runtime::spawn(async move {
-        agent::run_agent(app, window_label, params, settings, mcp_configs).await;
+        agent::run_agent(app, window_label, params, settings, mcp_configs, workspace_id).await;
     });
     Ok(())
 }

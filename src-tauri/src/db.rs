@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use crate::{Conversation, Workspace, WorkspaceSummary};
 
 use crate::agent::mcp::types::McpServerConfig;
+use crate::agent::types::{load_agent_settings, AgentSettings};
 
 pub struct Database {
     conn: Connection,
@@ -235,6 +236,28 @@ impl Database {
             self.add_mcp_server(&s)?;
         }
         Ok(())
+    }
+
+    pub fn build_agent_settings(
+        &self,
+        workspace_id: &str,
+    ) -> Result<(AgentSettings, Vec<McpServerConfig>)> {
+        let ws = self
+            .get_workspace(workspace_id)?
+            .ok_or_else(|| anyhow::anyhow!("工作空间不存在"))?;
+        if ws.archived {
+            anyhow::bail!("该工作空间已归档，请先恢复后再继续对话");
+        }
+        let mut map = self.get_all_agent_settings(workspace_id)?;
+        // workspaces.path 是工作目录唯一权威来源，覆盖（退役）设置键
+        if ws.path.is_empty() {
+            map.remove("agent.workspace_root");
+        } else {
+            map.insert("agent.workspace_root".to_string(), ws.path.clone());
+        }
+        let settings = load_agent_settings(&map);
+        let mcp = self.get_enabled_mcp_servers(workspace_id)?;
+        Ok((settings, mcp))
     }
 
     pub fn get_conversations(&self, workspace_id: &str) -> Result<Vec<Conversation>> {
@@ -855,6 +878,53 @@ mod tests {
 
         // 不存在的来源：不报错、目标空间无复制内容（仅 seed 默认键）
         db.copy_workspace_settings("nope", "w2").unwrap();
+    }
+
+    #[test]
+    fn build_agent_settings_injects_workspace_path_and_filters_mcp() {
+        let db = Database::in_memory().unwrap();
+        db.update_workspace("default", None, Some("/data/proj")).unwrap();
+        db.set_agent_setting("default", "agent.max_iterations", "5").unwrap();
+        db.add_mcp_server(&McpServerConfig {
+            id: "s1".into(),
+            workspace_id: "default".into(),
+            name: "fs".into(),
+            command: "npx".into(),
+            args: vec![],
+            env: Default::default(),
+            cwd: None,
+            timeout: 30,
+            transport: crate::agent::mcp::types::TransportKind::Stdio,
+            enabled: true,
+        })
+        .unwrap();
+        db.add_mcp_server(&McpServerConfig {
+            id: "s2".into(),
+            workspace_id: "default".into(),
+            name: "off".into(),
+            command: "npx".into(),
+            args: vec![],
+            env: Default::default(),
+            cwd: None,
+            timeout: 30,
+            transport: crate::agent::mcp::types::TransportKind::Stdio,
+            enabled: false,
+        })
+        .unwrap();
+
+        let (settings, mcp) = db.build_agent_settings("default").unwrap();
+        assert_eq!(settings.workspace_root.as_deref(), Some(std::path::Path::new("/data/proj")));
+        assert_eq!(settings.max_iterations, 5);
+        assert_eq!(mcp.len(), 1);
+        assert_eq!(mcp[0].id, "s1");
+    }
+
+    #[test]
+    fn build_agent_settings_rejects_archived_workspace() {
+        let db = Database::in_memory().unwrap();
+        db.create_workspace("w1", "项目A", "/tmp/a").unwrap();
+        db.set_workspace_archived("w1", true).unwrap();
+        assert!(db.build_agent_settings("w1").is_err());
     }
 
     #[test]
