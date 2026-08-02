@@ -116,8 +116,10 @@ npm run tauri build   # 生产构建
 
 ```bash
 npm run typecheck   # 类型检查，要求退出码为 0
-npm run build       # 生产构建（已包含 typecheck + vite build）
+npm run build       # 生产构建（已包含 typecheck + vitest + vite build）
 ```
+
+如需单独运行前端单元测试：`npm test`（vitest run，Agent 相关回归测试位于 `src/composables/*.test.ts`）。
 
 关键路径冒烟（本地手动验证，至少覆盖本次变更涉及的路径）：
 
