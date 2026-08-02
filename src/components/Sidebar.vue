@@ -14,6 +14,7 @@ defineProps<{
   activeWorkspaces: Workspace[];
   archivedWorkspaces: Workspace[];
   isAgentRunning: boolean;
+  pathMissing?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -57,6 +58,7 @@ const openMenuFor = ref<string | null>(null);
       :active="activeWorkspaces"
       :archived="archivedWorkspaces"
       :is-agent-running="isAgentRunning"
+      :path-missing="pathMissing"
       @select="emit('selectWorkspace', $event)"
       @open-manager="emit('openWorkspaceManager')"
       @new-workspace="emit('newWorkspace')"

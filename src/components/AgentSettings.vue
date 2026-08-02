@@ -2,8 +2,14 @@
 import { ref, onMounted } from "vue";
 import type { McpServerConfig } from "../types";
 import { normalizeAgentSettings } from "../composables/useAgentSettings";
+import { SETTING_FIELDS } from "../composables/agentSettingsFields";
 
 const emit = defineEmits<{ close: [] }>();
+
+const props = defineProps<{
+  workspaceId: string;
+  workspaceName: string;
+}>();
 
 const settings = ref<Record<string, string>>({});
 const mcpServers = ref<McpServerConfig[]>([]);
@@ -14,34 +20,15 @@ const showEditor = ref(false);
 const errorMsg = ref("");
 const saving = ref(false);
 
-const SETTING_FIELDS: {
-  key: string;
-  label: string;
-  type: "text" | "number" | "select" | "textarea";
-  options?: string[];
-}[] = [
-  { key: "agent.workspace_root", label: "工作目录 (workspace)", type: "text" },
-  { key: "agent.skills_dir", label: "Skills 目录（全局）", type: "text" },
-  {
-    key: "agent.command_approval",
-    label: "命令审批策略",
-    type: "select",
-    options: ["always", "whitelist", "never"],
-  },
-  { key: "agent.max_iterations", label: "最大工具循环次数", type: "number" },
-  { key: "agent.llm_timeout", label: "LLM 超时（秒）", type: "number" },
-  { key: "agent.command_timeout", label: "命令超时（秒）", type: "number" },
-  { key: "agent.approval_timeout", label: "审批超时（秒）", type: "number" },
-  { key: "agent.max_result_bytes", label: "工具结果上限（字节）", type: "number" },
-  { key: "agent.command_whitelist", label: "命令白名单（JSON）", type: "textarea" },
-  { key: "agent.sensitive_paths", label: "敏感路径扩展（JSON，glob）", type: "textarea" },
-];
-
 async function load() {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    settings.value = await invoke<Record<string, string>>("get_agent_settings");
-    mcpServers.value = await invoke<McpServerConfig[]>("list_mcp_servers");
+    settings.value = await invoke<Record<string, string>>("get_agent_settings", {
+      workspaceId: props.workspaceId,
+    });
+    mcpServers.value = await invoke<McpServerConfig[]>("list_mcp_servers", {
+      workspaceId: props.workspaceId,
+    });
   } catch (e) {
     errorMsg.value = String(e);
   }
@@ -56,6 +43,7 @@ async function save() {
     JSON.parse(settings.value["agent.sensitive_paths"] || "[]");
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("set_agent_settings", {
+      workspaceId: props.workspaceId,
       settings: normalizeAgentSettings(settings.value),
     });
     emit("close");
@@ -81,6 +69,7 @@ async function pickDirectory(key: string) {
 function newServer() {
   editing.value = {
     id: crypto.randomUUID(),
+    workspace_id: props.workspaceId,
     name: "",
     command: "",
     args: [],
@@ -150,7 +139,7 @@ onMounted(load);
   <div class="settings-overlay" @click.self="emit('close')">
     <div class="settings-panel agent-settings-panel">
       <div class="settings-header">
-        <h2>Agent 设置</h2>
+        <h2>Agent 设置 · {{ workspaceName }}</h2>
         <button class="close-btn" @click="emit('close')">✕</button>
       </div>
       <div class="settings-body">
@@ -163,7 +152,6 @@ onMounted(load);
             <input
               v-model="settings[f.key]"
               class="setting-input"
-              :placeholder="f.key === 'agent.workspace_root' ? '未配置则文件类工具禁用' : ''"
             />
             <button class="btn-secondary" @click="pickDirectory(f.key)">选择</button>
           </div>

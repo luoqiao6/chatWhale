@@ -5,6 +5,7 @@ defineProps<{
   isLoading: boolean;
   model?: string;
   agentMode: boolean;
+  disabled?: boolean;
 }>();
 
 interface SendParams {
@@ -143,6 +144,7 @@ function autoGrow() {
           rows="1"
           v-model="inputText"
           placeholder="输入消息，Enter 发送，Shift+Enter 换行..."
+          :disabled="disabled"
           @keydown="handleKeydown"
           @input="autoGrow"
         ></textarea>
@@ -168,6 +170,7 @@ function autoGrow() {
             class="btn-input"
             :class="{ active: agentMode }"
             :title="agentMode ? 'Agent 模式（工具调用回路）' : '普通模式'"
+            :disabled="disabled"
             @click="emit('toggleAgent')"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -178,8 +181,8 @@ function autoGrow() {
           </button>
           <button
             class="btn-send"
-            :class="{ disabled: isLoading }"
-            :disabled="isLoading"
+            :class="{ disabled: isLoading || disabled }"
+            :disabled="isLoading || disabled"
             title="发送消息"
             @click="sendMessage"
           >

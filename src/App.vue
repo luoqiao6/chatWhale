@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useConversations } from "./composables/useConversations";
 import { useWorkspaces } from "./composables/useWorkspaces";
 import Sidebar from "./components/Sidebar.vue";
@@ -36,12 +36,36 @@ const showModelManager = ref(false);
 const showAgentSettings = ref(false);
 const showWorkspaceManager = ref(false);
 const agentSettingsWorkspaceId = ref<string | null>(null);
+const agentRunning = ref(false);
+const pathMissing = ref(false);
 
 const workspaceSummaries = computed(() =>
   workspaces.value.map((w) => ({
     ...w,
     conversation_count: 0,
   })),
+);
+
+const agentSettingsWorkspaceName = computed(() => {
+  const id = agentSettingsWorkspaceId.value ?? currentWorkspace.value?.id ?? "default";
+  return workspaces.value.find((w) => w.id === id)?.name ?? "";
+});
+
+watch(
+  () => currentWorkspace.value?.path,
+  async (p) => {
+    if (!p) {
+      pathMissing.value = false;
+      return;
+    }
+    try {
+      const { exists } = await import("@tauri-apps/plugin-fs");
+      pathMissing.value = !(await exists(p));
+    } catch {
+      pathMissing.value = false;
+    }
+  },
+  { immediate: true },
 );
 
 function switchTheme(theme: ThemeName) {
@@ -124,7 +148,8 @@ function syncBorders() {
       :current-workspace="currentWorkspace"
       :active-workspaces="activeWorkspaces"
       :archived-workspaces="archivedWorkspaces"
-      :is-agent-running="false"
+      :is-agent-running="agentRunning"
+      :path-missing="pathMissing"
       @switch-theme="switchTheme"
       @select-conversation="selectConversation"
       @new-conversation="newConversation"
@@ -142,9 +167,16 @@ function syncBorders() {
       :conv-id="currentConvId"
       :model="currentModel"
       :workspace-id="currentWorkspace?.id ?? 'default'"
+      :workspace-archived="currentWorkspace?.archived ?? false"
+      @agent-running-change="(v) => (agentRunning = v)"
     />
     <Settings v-if="showSettings" @close="showSettings = false" />
-    <AgentSettings v-if="showAgentSettings" @close="showAgentSettings = false" />
+    <AgentSettings
+      v-if="showAgentSettings"
+      :workspace-id="agentSettingsWorkspaceId ?? currentWorkspace?.id ?? 'default'"
+      :workspace-name="agentSettingsWorkspaceName"
+      @close="showAgentSettings = false"
+    />
     <ModelManager v-if="showModelManager" @close="showModelManager = false" @select-model="selectModel" />
     <WorkspaceManager
       v-if="showWorkspaceManager"

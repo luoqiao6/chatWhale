@@ -10,6 +10,11 @@ const props = defineProps<{
   convId: string | null;
   model?: string;
   workspaceId: string;
+  workspaceArchived: boolean;
+}>();
+
+const emit = defineEmits<{
+  agentRunningChange: [running: boolean];
 }>();
 
 const { getConversation, updateConversation } = useConversations();
@@ -105,6 +110,10 @@ const {
 });
 watchAgentLoading(isLoading, isAgentRunning);
 
+watch(isAgentRunning, (running) => {
+  emit("agentRunningChange", running);
+});
+
 watch(
   () => props.workspaceId,
   () => {
@@ -132,6 +141,7 @@ const toolResults = computed(() => {
 
 function toggleAgentMode() {
   if (isAgentRunning.value) return;
+  if (props.workspaceArchived) return;
   if (!isTauriEnv) return;
   agentMode.value = !agentMode.value;
 }
@@ -227,6 +237,7 @@ function buildMessages(): Message[] {
 async function handleSend(params: SendParams) {
   const { content, thinkingEnabled, effort, temperature, maxTokens } = params;
   if (!content.trim() || isLoading.value) return;
+  if (props.workspaceArchived) return;
 
   const { baseUrl, apiKey } = getApiConfig();
   if (!apiKey) {
@@ -425,6 +436,10 @@ onUnmounted(() => {
       </div>
     </header>
 
+    <div v-if="workspaceArchived" class="archived-banner">
+      此工作空间已归档，可查看历史会话；继续对话请恢复工作空间
+    </div>
+
     <div class="chat-area" ref="chatContainer">
       <div class="chat-inner">
         <MessageBubble
@@ -488,6 +503,7 @@ onUnmounted(() => {
     <ChatInput
       :is-loading="isLoading"
       :agent-mode="agentMode"
+      :disabled="workspaceArchived"
       @send="handleSend"
       @toggle-agent="toggleAgentMode"
     />
@@ -496,6 +512,8 @@ onUnmounted(() => {
 
 <style scoped>
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+.archived-banner { padding: 8px 24px; background: var(--accent-bg); color: var(--accent); font-size: 12px; }
 
 .header {
   height: var(--header-height); min-height: var(--header-height);

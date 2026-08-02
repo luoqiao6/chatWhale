@@ -8,6 +8,7 @@ defineProps<{
   active: WorkspaceSummary[];
   archived: WorkspaceSummary[];
   isAgentRunning: boolean;
+  pathMissing?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -46,7 +47,9 @@ function pick(id: string) {
       ></span>
       <span class="ws-meta">
         <span class="ws-name">{{ currentWorkspace?.name ?? "未选择工作空间" }}</span>
-        <span class="ws-path">{{ formatWorkspacePath(currentWorkspace?.path ?? "") }}</span>
+        <span class="ws-path">
+          {{ pathMissing ? "⚠ " : "" }}{{ formatWorkspacePath(currentWorkspace?.path ?? "") }}
+        </span>
       </span>
       <span class="ws-chevron">▾</span>
     </button>

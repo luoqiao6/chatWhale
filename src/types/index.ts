@@ -85,6 +85,7 @@ export interface AgentDonePayload {
 
 export interface McpServerConfig {
   id: string;
+  workspace_id: string;
   name: string;
   command: string;
   args: string[];

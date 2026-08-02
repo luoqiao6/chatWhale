@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeAgentSettings } from "./useAgentSettings";
+import { SETTING_FIELDS } from "./agentSettingsFields";
 
 describe("normalizeAgentSettings", () => {
   it("把数字值转成字符串，保证 set_agent_settings 的 HashMap<String,String> 能反序列化", () => {
@@ -35,5 +36,17 @@ describe("normalizeAgentSettings", () => {
       "agent.workspace_root": "",
       "agent.skills_dir": "",
     });
+  });
+});
+
+describe("AgentSettings 设置字段", () => {
+  it("工作目录字段已退役（由工作空间管理）", () => {
+    expect(SETTING_FIELDS.some((f) => f.key === "agent.workspace_root")).toBe(false);
+  });
+
+  it("设置字段非空且键唯一", () => {
+    expect(SETTING_FIELDS.length).toBeGreaterThan(0);
+    const keys = SETTING_FIELDS.map((f) => f.key);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });
