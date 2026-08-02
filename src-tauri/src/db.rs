@@ -34,6 +34,7 @@ impl Database {
         )
         .context("Failed to create tables")?;
         Self::init_agent_tables(&conn)?;
+        Self::apply_migrations(&conn)?;
 
         Ok(Self { conn })
     }
@@ -54,18 +55,13 @@ impl Database {
                 updated_at INTEGER NOT NULL
             );
             CREATE TABLE IF NOT EXISTS agent_settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
+                workspace_id TEXT NOT NULL DEFAULT 'default',
+                key TEXT NOT NULL,
+                value TEXT NOT NULL,
+                PRIMARY KEY (workspace_id, key)
             );",
         )
         .context("Failed to create agent tables")?;
-        for (key, value) in crate::agent::types::AGENT_SETTING_KEYS {
-            conn.execute(
-                "INSERT OR IGNORE INTO agent_settings (key, value) VALUES (?1, ?2)",
-                params![key, value],
-            )
-            .context("Failed to seed agent settings")?;
-        }
         Ok(())
     }
 
@@ -197,6 +193,7 @@ impl Database {
         )
         .context("Failed to create tables")?;
         Self::init_agent_tables(&conn)?;
+        Self::apply_migrations(&conn)?;
         Ok(Self { conn })
     }
 
@@ -233,7 +230,7 @@ impl Database {
         self.conn
             .execute(
                 "INSERT INTO agent_settings (key, value) VALUES (?1, ?2)
-                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                 ON CONFLICT(workspace_id, key) DO UPDATE SET value = excluded.value",
                 params![key, value],
             )
             .context("upsert agent setting")?;
@@ -317,6 +314,107 @@ impl Database {
     }
 }
 
+fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let cols = stmt.query_map([], |r| r.get::<_, String>(1))?;
+    for c in cols {
+        if c? == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+impl Database {
+    /// 幂等迁移：workspaces 建表、加列、agent_settings 换表、seed、默认空间创建。
+    pub(crate) fn apply_migrations(conn: &Connection) -> Result<()> {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS workspaces (
+                id         TEXT PRIMARY KEY,
+                name       TEXT NOT NULL,
+                path       TEXT NOT NULL DEFAULT '',
+                archived   INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );",
+        )
+        .context("Failed to create workspaces table")?;
+
+        if !column_exists(conn, "conversations", "workspace_id")? {
+            conn.execute_batch(
+                "ALTER TABLE conversations ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default';
+                 CREATE INDEX IF NOT EXISTS idx_conversations_workspace ON conversations(workspace_id);",
+            )
+            .context("Failed to migrate conversations.workspace_id")?;
+        }
+        if !column_exists(conn, "mcp_servers", "workspace_id")? {
+            conn.execute_batch(
+                "ALTER TABLE mcp_servers ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default';
+                 CREATE INDEX IF NOT EXISTS idx_mcp_servers_workspace ON mcp_servers(workspace_id);",
+            )
+            .context("Failed to migrate mcp_servers.workspace_id")?;
+        }
+        if !column_exists(conn, "agent_settings", "workspace_id")? {
+            conn.execute_batch(
+                "ALTER TABLE agent_settings RENAME TO agent_settings_legacy;
+                 CREATE TABLE agent_settings (
+                    workspace_id TEXT NOT NULL DEFAULT 'default',
+                    key          TEXT NOT NULL,
+                    value        TEXT NOT NULL,
+                    PRIMARY KEY (workspace_id, key)
+                 );
+                 INSERT INTO agent_settings (workspace_id, key, value)
+                     SELECT 'default', key, value FROM agent_settings_legacy;
+                 DROP TABLE agent_settings_legacy;",
+            )
+            .context("Failed to migrate agent_settings")?;
+        }
+
+        for (key, value) in crate::agent::types::AGENT_SETTING_KEYS {
+            conn.execute(
+                "INSERT OR IGNORE INTO agent_settings (workspace_id, key, value)
+                 VALUES ('default', ?1, ?2)",
+                params![key, value],
+            )
+            .context("Failed to seed agent settings")?;
+        }
+
+        let has_default: bool = conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM workspaces WHERE id = 'default')",
+                [],
+                |r| r.get::<_, i64>(0),
+            )?
+            != 0;
+        if !has_default {
+            let path: String = conn
+                .query_row(
+                    "SELECT value FROM agent_settings
+                     WHERE workspace_id = 'default' AND key = 'agent.workspace_root'",
+                    [],
+                    |r| r.get(0),
+                )
+                .optional()?
+                .unwrap_or_default();
+            let now = chrono::Utc::now().timestamp_millis();
+            conn.execute(
+                "INSERT INTO workspaces (id, name, path, archived, created_at, updated_at)
+                 VALUES ('default', '默认工作空间', ?1, 0, ?2, ?2)",
+                params![path, now],
+            )
+            .context("Failed to create default workspace")?;
+            // workspace_root 退役：路径已复制到 workspaces.path，移除设置键避免双源
+            conn.execute(
+                "DELETE FROM agent_settings
+                 WHERE workspace_id = 'default' AND key = 'agent.workspace_root'",
+                [],
+            )
+            .ok();
+        }
+        Ok(())
+    }
+}
+
 fn transport_str(cfg: &McpServerConfig) -> String {
     match cfg.transport {
         crate::agent::mcp::types::TransportKind::Sse => "sse".into(),
@@ -347,6 +445,90 @@ fn row_to_server(row: &rusqlite::Row) -> rusqlite::Result<McpServerConfig> {
 mod tests {
     use super::*;
     use crate::agent::mcp::types::TransportKind;
+    use rusqlite::Connection;
+
+    #[test]
+    fn migrate_creates_workspaces_table_with_default() {
+        let db = Database::in_memory().unwrap();
+        let count: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM workspaces WHERE id = 'default'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+        let (name, path): (String, String) = db
+            .conn
+            .query_row(
+                "SELECT name, path FROM workspaces WHERE id = 'default'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(name, "默认工作空间");
+        assert_eq!(path, "");
+    }
+
+    #[test]
+    fn migrate_legacy_db_preserves_workspace_root_into_default_path() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE conversations (
+                id TEXT PRIMARY KEY, title TEXT NOT NULL, model TEXT NOT NULL,
+                created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+                messages TEXT NOT NULL DEFAULT '[]'
+            );
+            CREATE TABLE mcp_servers (
+                id TEXT PRIMARY KEY, name TEXT NOT NULL, command TEXT NOT NULL,
+                args TEXT NOT NULL DEFAULT '[]', env TEXT NOT NULL DEFAULT '{}', cwd TEXT,
+                timeout INTEGER NOT NULL DEFAULT 30, transport TEXT NOT NULL DEFAULT 'stdio',
+                enabled INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+            );
+            CREATE TABLE agent_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            INSERT INTO agent_settings (key, value) VALUES ('agent.workspace_root', '/tmp/proj');
+            INSERT INTO conversations (id, title, model, created_at, updated_at, messages)
+                VALUES ('c1', '旧会话', 'm', 1, 1, '[]');",
+        )
+        .unwrap();
+        Database::apply_migrations(&conn).unwrap();
+
+        let path: String = conn
+            .query_row("SELECT path FROM workspaces WHERE id='default'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(path, "/tmp/proj");
+
+        let ws_id: String = conn
+            .query_row(
+                "SELECT workspace_id FROM conversations WHERE id='c1'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(ws_id, "default");
+
+        let remaining: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM agent_settings WHERE key='agent.workspace_root'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(remaining, 0);
+    }
+
+    #[test]
+    fn migrate_is_idempotent() {
+        let db = Database::in_memory().unwrap();
+        Database::apply_migrations(&db.conn).unwrap();
+        Database::apply_migrations(&db.conn).unwrap();
+        let count: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM workspaces", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
+    }
 
     #[test]
     fn agent_settings_roundtrip() {

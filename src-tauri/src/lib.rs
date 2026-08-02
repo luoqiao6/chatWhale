@@ -31,6 +31,16 @@ pub struct Conversation {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Workspace {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub archived: bool,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatRequest {
     pub messages: serde_json::Value,
     pub model: String,
