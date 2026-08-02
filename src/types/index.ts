@@ -24,6 +24,7 @@ export interface Conversation {
   created_at: number;
   updated_at: number;
   messages: string;
+  workspace_id: string;
 }
 
 export interface ChatRequest {
@@ -92,6 +93,19 @@ export interface McpServerConfig {
   timeout: number;
   transport: "stdio" | "sse";
   enabled: boolean;
+}
+
+export interface Workspace {
+  id: string;
+  name: string;
+  path: string;
+  archived: boolean;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface WorkspaceSummary extends Workspace {
+  conversation_count: number;
 }
 
 export interface Tool {

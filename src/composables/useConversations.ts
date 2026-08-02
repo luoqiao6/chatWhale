@@ -28,6 +28,7 @@ export function useConversations() {
       created_at: Date.now(),
       updated_at: Date.now(),
       messages: "[]",
+      workspace_id: "default",
     };
     conversations.value.unshift(conv);
     saveToStorage();
