@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useConversations } from "./composables/useConversations";
 import { useWorkspaces } from "./composables/useWorkspaces";
 import Sidebar from "./components/Sidebar.vue";
@@ -7,9 +7,11 @@ import ChatView from "./components/ChatView.vue";
 import Settings from "./components/Settings.vue";
 import ModelManager from "./components/ModelManager.vue";
 import AgentSettings from "./components/AgentSettings.vue";
+import WorkspaceManager from "./components/WorkspaceManager.vue";
 import type { ThemeName } from "./types";
 
 const {
+  workspaces,
   currentWorkspace,
   activeWorkspaces,
   archivedWorkspaces,
@@ -33,6 +35,14 @@ const showSettings = ref(false);
 const showModelManager = ref(false);
 const showAgentSettings = ref(false);
 const showWorkspaceManager = ref(false);
+const agentSettingsWorkspaceId = ref<string | null>(null);
+
+const workspaceSummaries = computed(() =>
+  workspaces.value.map((w) => ({
+    ...w,
+    conversation_count: 0,
+  })),
+);
 
 function switchTheme(theme: ThemeName) {
   currentTheme.value = theme;
@@ -58,6 +68,16 @@ async function newConversation() {
   if (!ws || ws.archived) return;
   const conv = await createConversation("新对话", currentModel.value, ws.id);
   currentConvId.value = conv.id;
+}
+
+async function refreshAfterManage() {
+  await initWorkspaces();
+  await loadConversations(currentWorkspace.value?.id ?? "default");
+}
+
+function openAgentSettingsFor(workspaceId: string) {
+  agentSettingsWorkspaceId.value = workspaceId;
+  showAgentSettings.value = true;
 }
 
 function selectModel(modelId: string) {
@@ -126,6 +146,14 @@ function syncBorders() {
     <Settings v-if="showSettings" @close="showSettings = false" />
     <AgentSettings v-if="showAgentSettings" @close="showAgentSettings = false" />
     <ModelManager v-if="showModelManager" @close="showModelManager = false" @select-model="selectModel" />
+    <WorkspaceManager
+      v-if="showWorkspaceManager"
+      :workspaces="workspaceSummaries"
+      :current-id="currentWorkspace?.id ?? 'default'"
+      @close="showWorkspaceManager = false"
+      @refresh="refreshAfterManage"
+      @open-agent-settings="openAgentSettingsFor"
+    />
   </div>
 </template>
 
