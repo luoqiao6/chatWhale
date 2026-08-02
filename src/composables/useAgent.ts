@@ -7,6 +7,7 @@ import type {
   Message,
   ToolExecution,
 } from "../types";
+import { formatAgentEndReason, mergeDoneMessages } from "./agentStatus";
 
 type UnlistenFn = () => void;
 
@@ -144,8 +145,17 @@ export function useAgent(
     unlistenFns.push(
       await listen<AgentDonePayload>("agent-done", (e) => {
         const payload = e.payload;
-        lastReason.value = payload.reason;
-        messages.value = payload.messages;
+        const localAssistantIndex = activeAssistantIndex;
+        lastReason.value = formatAgentEndReason(
+          payload.reason,
+          payload.finish_reason ?? null,
+          payload.mcp_error ?? null,
+        );
+        messages.value = mergeDoneMessages(
+          messages.value,
+          localAssistantIndex,
+          payload.messages,
+        );
         saveMessages();
         isAgentRunning.value = false;
         pendingApproval.value = null;

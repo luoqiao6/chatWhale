@@ -113,6 +113,7 @@ fn send_done(
     runtime: &AgentRuntime,
     messages: &[ChatMessage],
     reason: &str,
+    finish_reason: Option<&str>,
     mcp_error: Option<&str>,
 ) -> tauri::Result<()> {
     emit_agent_event(
@@ -123,6 +124,7 @@ fn send_done(
             "messages": messages,
             "reason": reason,
             "usage": runtime.usage.snapshot(),
+            "finish_reason": finish_reason,
             "mcp_error": mcp_error,
         }),
     )
@@ -207,7 +209,7 @@ async fn run_agent_inner(
         tokio::select! {
             _ = runtime.cancellation.cancelled() => {
                 mcp.shutdown_all().await;
-                let _ = send_done(app, window_label, runtime, &messages, "cancelled", None);
+                let _ = send_done(app, window_label, runtime, &messages, "cancelled", None, None);
                 return;
             }
             result = send_chat_stream(app, Some(window_label), runtime, settings, &messages, &tools, params) => {
@@ -216,21 +218,28 @@ async fn run_agent_inner(
                     Err(e) => {
                         let _ = emit_agent_event(app, Some(window_label), EVENT_ERROR, serde_json::json!({ "message": e.to_string() }));
                         mcp.shutdown_all().await;
-                        let _ = send_done(app, window_label, runtime, &messages, "error", None);
+                        let _ = send_done(app, window_label, runtime, &messages, "error", None, None);
                         return;
                     }
                 };
                 let final_reason = if mcp.failed { "mcp_error" } else { "stop" };
                 match choice.finish_reason.as_deref() {
                     Some("stop") | None => {
-                        if choice.message.content.is_some() || choice.message.reasoning_content.is_some() {
-                            messages.push(ChatMessage::assistant(
-                                choice.message.content,
-                                choice.message.reasoning_content,
-                            ));
-                        }
+                        push_partial_assistant(&mut messages, &choice.message);
                         mcp.shutdown_all().await;
-                        let _ = send_done(app, window_label, runtime, &messages, final_reason, if mcp.failed { Some("MCP server 连接失败，已剔除相关工具") } else { None });
+                        let _ = send_done(
+                            app,
+                            window_label,
+                            runtime,
+                            &messages,
+                            final_reason,
+                            choice.finish_reason.as_deref(),
+                            if mcp.failed {
+                                Some("MCP server 连接失败，已剔除相关工具")
+                            } else {
+                                None
+                            },
+                        );
                         return;
                     }
                     Some("tool_calls") => {
@@ -282,13 +291,32 @@ async fn run_agent_inner(
                         }
                     }
                     Some("length") | Some("content_filter") | Some("insufficient_system_resource") => {
+                        // 输出被截断等异常结束：保留已流式生成的部分内容，并透传实际 finish_reason
+                        push_partial_assistant(&mut messages, &choice.message);
                         mcp.shutdown_all().await;
-                        let _ = send_done(app, window_label, runtime, &messages, "finish_reason", None);
+                        let _ = send_done(
+                            app,
+                            window_label,
+                            runtime,
+                            &messages,
+                            "finish_reason",
+                            choice.finish_reason.as_deref(),
+                            None,
+                        );
                         return;
                     }
                     Some(_) => {
+                        push_partial_assistant(&mut messages, &choice.message);
                         mcp.shutdown_all().await;
-                        let _ = send_done(app, window_label, runtime, &messages, final_reason, None);
+                        let _ = send_done(
+                            app,
+                            window_label,
+                            runtime,
+                            &messages,
+                            final_reason,
+                            choice.finish_reason.as_deref(),
+                            None,
+                        );
                         return;
                     }
                 }
@@ -296,7 +324,7 @@ async fn run_agent_inner(
         }
     }
     mcp.shutdown_all().await;
-    let _ = send_done(app, window_label, runtime, &messages, "max_iterations", None);
+    let _ = send_done(app, window_label, runtime, &messages, "max_iterations", None, None);
 }
 
 async fn approve_agent_md_if_needed(

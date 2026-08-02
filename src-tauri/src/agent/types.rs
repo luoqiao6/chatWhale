@@ -98,6 +98,18 @@ impl ChatMessage {
     }
 }
 
+/// 把一轮流式结果里已生成的内容追加为 assistant 消息（仅当确有输出）。
+/// 正常结束与异常结束（length/content_filter 等）分支共用，
+/// 避免模型输出被截断时部分推理/内容丢失。
+pub fn push_partial_assistant(messages: &mut Vec<ChatMessage>, message: &ChoiceMessage) {
+    if message.content.is_some() || message.reasoning_content.is_some() {
+        messages.push(ChatMessage::assistant(
+            message.content.clone(),
+            message.reasoning_content.clone(),
+        ));
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolDef {
     #[serde(rename = "type")]
@@ -169,6 +181,13 @@ impl UsageCounter {
         self.completion_tokens
             .fetch_add(u.completion_tokens, Ordering::Relaxed);
         self.total_tokens.fetch_add(u.total_tokens, Ordering::Relaxed);
+    }
+    /// 记录一次 LLM 流式调用的 usage。
+    /// 同一流中 usage 可能被代理逐 chunk 重复携带，只以最后一次计入一次。
+    pub fn record_stream_usage(&self, chunks: impl IntoIterator<Item = Usage>) {
+        if let Some(last) = chunks.into_iter().last() {
+            self.add(&last);
+        }
     }
     pub fn snapshot(&self) -> Usage {
         Usage {
@@ -331,5 +350,57 @@ mod tests {
         assert_eq!(parse_policy("whitelist"), ApprovalPolicy::Whitelist);
         assert_eq!(parse_policy("never"), ApprovalPolicy::Never);
         assert_eq!(parse_policy("garbage"), ApprovalPolicy::Always);
+    }
+
+    #[test]
+    fn push_partial_assistant_preserves_partial_output() {
+        let mut messages = vec![ChatMessage::user("hi")];
+        let msg = ChoiceMessage {
+            content: None,
+            reasoning_content: Some("思考中".into()),
+            tool_calls: vec![],
+        };
+        push_partial_assistant(&mut messages, &msg);
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[1].role, "assistant");
+        assert_eq!(messages[1].reasoning_content.as_deref(), Some("思考中"));
+        assert!(messages[1].content.is_none());
+    }
+
+    #[test]
+    fn push_partial_assistant_skips_empty_message() {
+        let mut messages = vec![ChatMessage::user("hi")];
+        let msg = ChoiceMessage::default();
+        push_partial_assistant(&mut messages, &msg);
+        assert_eq!(messages.len(), 1);
+    }
+
+    #[test]
+    fn record_stream_usage_counts_last_chunk_once() {
+        let counter = UsageCounter::default();
+        // 同一流里代理可能逐 chunk 重复携带 usage，只应计入最后一次
+        counter.record_stream_usage([
+            Usage {
+                prompt_tokens: 1,
+                completion_tokens: 2,
+                total_tokens: 3,
+            },
+            Usage {
+                prompt_tokens: 4,
+                completion_tokens: 5,
+                total_tokens: 9,
+            },
+        ]);
+        let s = counter.snapshot();
+        assert_eq!(s.prompt_tokens, 4);
+        assert_eq!(s.completion_tokens, 5);
+        assert_eq!(s.total_tokens, 9);
+    }
+
+    #[test]
+    fn record_stream_usage_ignores_missing_usage() {
+        let counter = UsageCounter::default();
+        counter.record_stream_usage(None::<Usage>);
+        assert_eq!(counter.snapshot().total_tokens, 0);
     }
 }

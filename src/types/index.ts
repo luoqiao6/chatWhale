@@ -79,6 +79,7 @@ export interface AgentDonePayload {
   reason: "stop" | "max_iterations" | "cancelled" | "finish_reason" | "mcp_error" | "error";
   usage?: AgentUsage;
   mcp_error?: string | null;
+  finish_reason?: string | null;
 }
 
 export interface McpServerConfig {

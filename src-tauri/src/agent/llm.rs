@@ -178,6 +178,7 @@ pub async fn send_chat_stream(
         let mut name_acc: std::collections::BTreeMap<usize, String> = Default::default();
         let mut args_acc: std::collections::BTreeMap<usize, String> = Default::default();
         let mut finish_reason: Option<String> = None;
+        let mut last_usage: Option<Usage> = None;
 
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.context("读取流失败")?;
@@ -189,7 +190,8 @@ pub async fn send_chat_stream(
                     continue;
                 };
                 if let Some(u) = &delta.usage {
-                    runtime.usage.add(u);
+                    // 同一流内 usage 可能被代理逐 chunk 重复携带，只保留最后一次
+                    last_usage = Some(u.clone());
                 }
                 if let Some(r) = delta.reasoning {
                     message
@@ -240,6 +242,7 @@ pub async fn send_chat_stream(
                 }
             }
         }
+        runtime.usage.record_stream_usage(last_usage);
         for (idx, tc) in tool_acc.iter_mut() {
             tc.function.name = name_acc.remove(idx).unwrap_or_default();
             tc.function.arguments = args_acc.remove(idx).unwrap_or_default();
