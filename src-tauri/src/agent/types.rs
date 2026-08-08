@@ -213,6 +213,56 @@ pub struct WhitelistEntry {
     pub cwd: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum BrowserContentPolicy {
+    #[default]
+    Strict,
+    Normal,
+    Trusted,
+}
+
+impl BrowserContentPolicy {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            BrowserContentPolicy::Strict => "strict",
+            BrowserContentPolicy::Normal => "normal",
+            BrowserContentPolicy::Trusted => "trusted",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum BrowserApproval {
+    #[default]
+    Navigation,
+    Always,
+}
+
+pub fn parse_browser_policy(s: &str) -> BrowserContentPolicy {
+    match s.trim() {
+        "normal" => BrowserContentPolicy::Normal,
+        "trusted" => BrowserContentPolicy::Trusted,
+        _ => BrowserContentPolicy::Strict,
+    }
+}
+
+pub fn parse_browser_approval(s: &str) -> BrowserApproval {
+    match s.trim() {
+        "always" => BrowserApproval::Always,
+        _ => BrowserApproval::Navigation,
+    }
+}
+
+pub fn parse_domain_policy(s: &str) -> HashMap<String, BrowserContentPolicy> {
+    serde_json::from_str::<HashMap<String, String>>(s)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(k, v)| (k, parse_browser_policy(&v)))
+        .collect()
+}
+
 /// 从 agent_settings 表解析出的运行时设置。
 #[derive(Debug, Clone)]
 pub struct AgentSettings {
@@ -227,6 +277,11 @@ pub struct AgentSettings {
     pub approval_timeout: Duration,
     pub max_result_bytes: usize,
     pub sensitive_paths: Vec<String>,
+    pub browser_enabled: bool,
+    pub browser_path: Option<String>,
+    pub browser_approval: BrowserApproval,
+    pub browser_content_policy: BrowserContentPolicy,
+    pub browser_domain_policy: HashMap<String, BrowserContentPolicy>,
 }
 
 impl Default for AgentSettings {
@@ -243,6 +298,11 @@ impl Default for AgentSettings {
             approval_timeout: Duration::from_secs(60),
             max_result_bytes: 204_800,
             sensitive_paths: Vec::new(),
+            browser_enabled: false,
+            browser_path: None,
+            browser_approval: BrowserApproval::Navigation,
+            browser_content_policy: BrowserContentPolicy::Strict,
+            browser_domain_policy: HashMap::new(),
         }
     }
 }
@@ -260,6 +320,11 @@ pub const AGENT_SETTING_KEYS: &[(&str, &str)] = &[
     ("agent.approval_timeout", "60"),
     ("agent.max_result_bytes", "204800"),
     ("agent.sensitive_paths", "[]"),
+    ("agent.browser_enabled", "false"),
+    ("agent.browser_path", ""),
+    ("agent.browser_approval", "navigation"),
+    ("agent.browser_content_policy", "strict"),
+    ("agent.browser_domain_policy", "{}"),
 ];
 
 #[derive(Debug, Clone, Deserialize)]
@@ -299,6 +364,14 @@ pub fn parse_string_list(s: &str) -> Vec<String> {
     serde_json::from_str(s).unwrap_or_default()
 }
 
+pub fn parse_bool(s: &str, default: bool) -> bool {
+    match s.trim() {
+        "true" | "1" => true,
+        "false" | "0" => false,
+        _ => default,
+    }
+}
+
 pub fn load_agent_settings(map: &HashMap<String, String>) -> AgentSettings {
     let get = |k: &str, default: &str| {
         map.get(k)
@@ -328,6 +401,14 @@ pub fn load_agent_settings(map: &HashMap<String, String>) -> AgentSettings {
         approval_timeout: parse_duration_secs(&get("agent.approval_timeout", "60"), 60),
         max_result_bytes: parse_usize(&get("agent.max_result_bytes", "204800"), 204_800),
         sensitive_paths: parse_string_list(&get("agent.sensitive_paths", "[]")),
+        browser_enabled: parse_bool(&get("agent.browser_enabled", "false"), false),
+        browser_path: {
+            let p = get("agent.browser_path", "").trim().to_string();
+            if p.is_empty() { None } else { Some(p) }
+        },
+        browser_approval: parse_browser_approval(&get("agent.browser_approval", "navigation")),
+        browser_content_policy: parse_browser_policy(&get("agent.browser_content_policy", "strict")),
+        browser_domain_policy: parse_domain_policy(&get("agent.browser_domain_policy", "{}")),
     }
 }
 
@@ -402,5 +483,46 @@ mod tests {
         let counter = UsageCounter::default();
         counter.record_stream_usage(None::<Usage>);
         assert_eq!(counter.snapshot().total_tokens, 0);
+    }
+
+    #[test]
+    fn parses_browser_policy_variants() {
+        assert_eq!(parse_browser_policy("strict"), BrowserContentPolicy::Strict);
+        assert_eq!(parse_browser_policy("normal"), BrowserContentPolicy::Normal);
+        assert_eq!(parse_browser_policy("trusted"), BrowserContentPolicy::Trusted);
+        assert_eq!(parse_browser_policy("garbage"), BrowserContentPolicy::Strict);
+        assert_eq!(BrowserContentPolicy::Trusted.as_str(), "trusted");
+    }
+
+    #[test]
+    fn browser_policy_ordering() {
+        assert!(BrowserContentPolicy::Strict < BrowserContentPolicy::Normal);
+        assert!(BrowserContentPolicy::Normal < BrowserContentPolicy::Trusted);
+    }
+
+    #[test]
+    fn parses_browser_approval_variants() {
+        assert_eq!(parse_browser_approval("navigation"), BrowserApproval::Navigation);
+        assert_eq!(parse_browser_approval("always"), BrowserApproval::Always);
+        assert_eq!(parse_browser_approval("x"), BrowserApproval::Navigation);
+    }
+
+    #[test]
+    fn parses_domain_policy_json() {
+        let map = parse_domain_policy(r#"{"example.com":"trusted","*.foo.com":"normal"}"#);
+        assert_eq!(map.get("example.com"), Some(&BrowserContentPolicy::Trusted));
+        assert_eq!(map.get("*.foo.com"), Some(&BrowserContentPolicy::Normal));
+        assert!(parse_domain_policy("not json").is_empty());
+    }
+
+    #[test]
+    fn load_settings_includes_browser_defaults() {
+        let map = HashMap::new();
+        let s = load_agent_settings(&map);
+        assert!(!s.browser_enabled);
+        assert!(s.browser_path.is_none());
+        assert_eq!(s.browser_approval, BrowserApproval::Navigation);
+        assert_eq!(s.browser_content_policy, BrowserContentPolicy::Strict);
+        assert!(s.browser_domain_policy.is_empty());
     }
 }
