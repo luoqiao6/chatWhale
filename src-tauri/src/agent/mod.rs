@@ -5,6 +5,7 @@ pub mod tools;
 pub mod agent_config;
 pub mod skills;
 pub mod mcp;
+pub mod browser;
 
 use crate::agent::agent_config::AgentConfig;
 use crate::agent::approval::{global_manager, ApprovalManager};
