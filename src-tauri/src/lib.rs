@@ -280,8 +280,8 @@ async fn agent_cancel(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn agent_approve(id: String, approved: bool) -> Result<(), String> {
-    if approval::resolve_global(&id, approved) {
+async fn agent_approve(id: String, approved: bool, level: Option<String>) -> Result<(), String> {
+    if approval::resolve_global_with_level(&id, approved, level) {
         Ok(())
     } else {
         Err(format!("审批请求 {id} 不存在或已超时"))

@@ -23,6 +23,7 @@ interface ToolResultPayload {
   name: string;
   result: string;
   error?: string | null;
+  image_path?: string | null;
 }
 
 /**
@@ -193,11 +194,11 @@ export function useAgent(
     }
   }
 
-  async function approveCommand(id: string, approved: boolean) {
+  async function approveCommand(id: string, approved: boolean, level?: string) {
     pendingApproval.value = null;
     try {
       const { invoke } = await import("@tauri-apps/api/core");
-      await invoke("agent_approve", { id, approved });
+      await invoke("agent_approve", { id, approved, level: level ?? null });
     } catch (err) {
       agentError.value = String(err);
     }

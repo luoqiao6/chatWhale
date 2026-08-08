@@ -67,6 +67,7 @@ export interface ApprovalRequest {
   tool_name: string;
   command: string;
   policy: string;
+  choices?: { level: string; label: string }[];
 }
 
 export interface AgentUsage {

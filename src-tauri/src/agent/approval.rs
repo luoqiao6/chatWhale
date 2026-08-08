@@ -1,4 +1,6 @@
-use crate::agent::types::{AgentSettings, ApprovalPolicy, WhitelistEntry};
+use crate::agent::types::{
+    AgentSettings, ApprovalPolicy, BrowserContentPolicy, WhitelistEntry,
+};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
@@ -16,17 +18,37 @@ pub enum ApprovalOutcome {
     Cancelled,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApprovalResult {
+    pub outcome: ApprovalOutcome,
+    pub level: Option<String>,
+}
+
+#[derive(Clone)]
+struct ApprovalReply {
+    approved: bool,
+    level: Option<String>,
+}
+
+#[derive(Serialize, Clone)]
+struct ApprovalChoice {
+    level: String,
+    label: String,
+}
+
 #[derive(Serialize, Clone)]
 struct ApprovalPayload<'a> {
     id: &'a str,
     tool_name: &'a str,
     command: &'a str,
     policy: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    choices: Option<Vec<ApprovalChoice>>,
 }
 
 #[derive(Default)]
 pub struct ApprovalManager {
-    pending: Mutex<HashMap<String, oneshot::Sender<bool>>>,
+    pending: Mutex<HashMap<String, oneshot::Sender<ApprovalReply>>>,
 }
 
 impl ApprovalManager {
@@ -45,8 +67,41 @@ impl ApprovalManager {
         timeout: std::time::Duration,
         cancellation: CancellationToken,
     ) -> ApprovalOutcome {
+        self.request_with_choices(app, window_label, tool_name, command, policy, timeout, cancellation, &[])
+            .await
+            .outcome
+    }
+
+    pub async fn request_with_choices(
+        &self,
+        app: &AppHandle,
+        window_label: Option<&str>,
+        tool_name: &str,
+        command: &str,
+        policy: &str,
+        timeout: std::time::Duration,
+        cancellation: CancellationToken,
+        choices: &[BrowserContentPolicy],
+    ) -> ApprovalResult {
         let id = uuid::Uuid::new_v4().to_string();
         let (tx, rx) = oneshot::channel();
+        let choices_payload = if choices.is_empty() {
+            None
+        } else {
+            Some(
+                choices
+                    .iter()
+                    .map(|c| ApprovalChoice {
+                        level: c.as_str().to_string(),
+                        label: match c {
+                            BrowserContentPolicy::Normal => "允许并放宽到 normal".to_string(),
+                            BrowserContentPolicy::Trusted => "允许并放宽到 trusted".to_string(),
+                            BrowserContentPolicy::Strict => "允许（strict）".to_string(),
+                        },
+                    })
+                    .collect(),
+            )
+        };
         self.pending
             .lock()
             .unwrap_or_else(|p| p.into_inner())
@@ -60,27 +115,34 @@ impl ApprovalManager {
                 tool_name,
                 command,
                 policy,
+                choices: choices_payload,
             },
         );
 
         tokio::select! {
             _ = cancellation.cancelled() => {
                 self.pending.lock().unwrap_or_else(|p| p.into_inner()).remove(&id);
-                ApprovalOutcome::Cancelled
+                ApprovalResult { outcome: ApprovalOutcome::Cancelled, level: None }
             }
             _ = tokio::time::sleep(timeout) => {
                 self.pending.lock().unwrap_or_else(|p| p.into_inner()).remove(&id);
-                ApprovalOutcome::Timeout
+                ApprovalResult { outcome: ApprovalOutcome::Timeout, level: None }
             }
             v = rx => match v {
-                Ok(true) => ApprovalOutcome::Granted,
-                Ok(false) => ApprovalOutcome::Rejected("用户拒绝".into()),
-                Err(_) => ApprovalOutcome::Timeout,
+                Ok(reply) => ApprovalResult {
+                    outcome: if reply.approved {
+                        ApprovalOutcome::Granted
+                    } else {
+                        ApprovalOutcome::Rejected("用户拒绝".into())
+                    },
+                    level: reply.level,
+                },
+                Err(_) => ApprovalResult { outcome: ApprovalOutcome::Timeout, level: None },
             }
         }
     }
 
-    pub fn resolve(&self, id: &str, approved: bool) -> bool {
+    pub fn resolve_with_level(&self, id: &str, approved: bool, level: Option<String>) -> bool {
         let sender = self
             .pending
             .lock()
@@ -88,11 +150,15 @@ impl ApprovalManager {
             .remove(id);
         match sender {
             Some(tx) => {
-                let _ = tx.send(approved);
+                let _ = tx.send(ApprovalReply { approved, level });
                 true
             }
             None => false,
         }
+    }
+
+    pub fn resolve(&self, id: &str, approved: bool) -> bool {
+        self.resolve_with_level(id, approved, None)
     }
 }
 
@@ -104,6 +170,10 @@ pub fn global_manager() -> &'static ApprovalManager {
 
 pub fn resolve_global(id: &str, approved: bool) -> bool {
     global_manager().resolve(id, approved)
+}
+
+pub fn resolve_global_with_level(id: &str, approved: bool, level: Option<String>) -> bool {
+    global_manager().resolve_with_level(id, approved, level)
 }
 
 pub fn normalized_command(cmd: &str) -> String {
@@ -204,5 +274,20 @@ mod tests {
         };
         assert!(is_whitelisted(&s2, "rm -rf /tmp/cleanup", None));
         assert!(!is_whitelisted(&s2, "rm -rf /tmp/other", None));
+    }
+
+    #[tokio::test]
+    async fn resolve_with_level_returns_level() {
+        let mgr = ApprovalManager::new();
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        mgr.pending
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .insert("a1".into(), tx);
+        assert!(mgr.resolve_with_level("a1", true, Some("trusted".into())));
+        let reply = rx.await.unwrap();
+        assert!(reply.approved);
+        assert_eq!(reply.level.as_deref(), Some("trusted"));
+        assert!(!mgr.resolve_with_level("missing", true, None));
     }
 }
