@@ -7,6 +7,7 @@ use crate::agent::types::{
     AgentSettings, BrowserContentPolicy, ToolCall, ToolDef, ToolResult,
 };
 use async_trait::async_trait;
+use chrono::Datelike;
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -54,6 +55,7 @@ impl ToolRegistry {
         r.register(Box::new(ListDirectoryTool::new(settings)));
         r.register(Box::new(SearchFilesTool::new(settings)));
         r.register(Box::new(ExecuteCommandTool::new(settings)));
+        r.register(Box::new(GetCurrentTimeTool::new()));
         if settings.browser_enabled {
             r.register(Box::new(BrowserOpenTool::new(settings)));
             r.register(Box::new(BrowserReadTool::new(settings)));
@@ -652,9 +654,70 @@ impl Tool for ExecuteCommandTool {
     }
 }
 
+fn weekday_cn(w: chrono::Weekday) -> &'static str {
+    match w {
+        chrono::Weekday::Mon => "星期一",
+        chrono::Weekday::Tue => "星期二",
+        chrono::Weekday::Wed => "星期三",
+        chrono::Weekday::Thu => "星期四",
+        chrono::Weekday::Fri => "星期五",
+        chrono::Weekday::Sat => "星期六",
+        chrono::Weekday::Sun => "星期日",
+    }
+}
+
+/// 格式化当前时间：同时返回中文单行（含星期与 UTC 偏移）与 ISO 8601。
+pub fn format_current_time(now: chrono::DateTime<chrono::FixedOffset>) -> String {
+    let offset_secs = now.offset().local_minus_utc();
+    let sign = if offset_secs >= 0 { "+" } else { "-" };
+    let offset_hours = offset_secs.abs() / 3600;
+    let offset_minutes = (offset_secs.abs() % 3600) / 60;
+    let utc = if offset_minutes == 0 {
+        format!("UTC{sign}{offset_hours}")
+    } else {
+        format!("UTC{sign}{offset_hours}:{:02}", offset_minutes)
+    };
+    format!(
+        "当前时间: {} {} ({utc})\nISO 8601: {}",
+        now.format("%Y-%m-%d %H:%M:%S"),
+        weekday_cn(now.weekday()),
+        now.to_rfc3339()
+    )
+}
+
+struct GetCurrentTimeTool;
+
+impl GetCurrentTimeTool {
+    fn new() -> Self {
+        Self
+    }
+}
+
+#[async_trait]
+impl Tool for GetCurrentTimeTool {
+    fn name(&self) -> &str {
+        "get_current_time"
+    }
+    fn description(&self) -> &str {
+        "获取当前日期与时间（本地时区），同时返回中文格式与 ISO 8601 格式，用于对齐会话时间"
+    }
+    fn parameters(&self) -> Value {
+        json!({ "type": "object", "properties": {}, "required": [] })
+    }
+    async fn execute(&self, _ctx: &ToolContext<'_>, _args: Value) -> ToolResult {
+        let now = chrono::Local::now().fixed_offset();
+        ToolResult {
+            success: true,
+            content: format_current_time(now),
+            image_path: None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeZone;
     use std::path::PathBuf;
 
     fn settings_with_workspace(p: &str) -> AgentSettings {
@@ -729,5 +792,16 @@ mod tests {
         let out = truncate_result(&big, 100);
         assert!(out.contains("[已截断"));
         assert!(out.len() < 200);
+    }
+
+    #[test]
+    fn formats_current_time_with_both_iso_and_chinese() {
+        let tz = chrono::FixedOffset::east_opt(8 * 3600).unwrap();
+        let now = tz.with_ymd_and_hms(2026, 8, 8, 20, 35, 0).unwrap();
+        let out = format_current_time(now);
+        assert!(out.contains("2026-08-08 20:35:00"), "缺少中文时间: {out}");
+        assert!(out.contains("星期六"), "缺少星期: {out}");
+        assert!(out.contains("UTC+8"), "缺少时区偏移: {out}");
+        assert!(out.contains("2026-08-08T20:35:00+08:00"), "缺少 ISO 8601: {out}");
     }
 }
