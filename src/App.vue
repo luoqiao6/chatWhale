@@ -8,6 +8,7 @@ import Settings from "./components/Settings.vue";
 import ModelManager from "./components/ModelManager.vue";
 import AgentSettings from "./components/AgentSettings.vue";
 import WorkspaceManager from "./components/WorkspaceManager.vue";
+import NewWorkspaceDialog from "./components/NewWorkspaceDialog.vue";
 import type { ThemeName, WorkspaceSummary } from "./types";
 
 const {
@@ -35,6 +36,7 @@ const showSettings = ref(false);
 const showModelManager = ref(false);
 const showAgentSettings = ref(false);
 const showWorkspaceManager = ref(false);
+const showNewWorkspace = ref(false);
 const agentSettingsWorkspaceId = ref<string | null>(null);
 const agentRunning = ref(false);
 const pathMissing = ref(false);
@@ -163,7 +165,7 @@ function syncBorders() {
       @open-model-manager="showModelManager = true"
       @select-workspace="selectWorkspace"
       @open-workspace-manager="showWorkspaceManager = true"
-      @new-workspace="showWorkspaceManager = true"
+      @new-workspace="showNewWorkspace = true"
       @move-conversation="(id, target) => moveConversation(id, target)"
       @delete-conversation="deleteConversation"
     />
@@ -190,6 +192,12 @@ function syncBorders() {
       @close="showWorkspaceManager = false"
       @refresh="refreshAfterManage"
       @open-agent-settings="openAgentSettingsFor"
+    />
+    <NewWorkspaceDialog
+      v-if="showNewWorkspace"
+      :workspaces="workspaceSummaries"
+      @close="showNewWorkspace = false"
+      @refresh="refreshAfterManage"
     />
   </div>
 </template>

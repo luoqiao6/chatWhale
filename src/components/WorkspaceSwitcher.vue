@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type { Workspace, WorkspaceSummary } from "../types";
-import { formatWorkspacePath, workspaceColor } from "../composables/workspaceUi";
+import { workspaceColor, workspaceDirName } from "../composables/workspaceUi";
 
 defineProps<{
   currentWorkspace: Workspace | null;
@@ -47,8 +47,11 @@ function pick(id: string) {
       ></span>
       <span class="ws-meta">
         <span class="ws-name">{{ currentWorkspace?.name ?? "未选择工作空间" }}</span>
-        <span class="ws-path">
-          {{ pathMissing ? "⚠ " : "" }}{{ formatWorkspacePath(currentWorkspace?.path ?? "") }}
+        <span
+          class="ws-path"
+          :title="currentWorkspace?.path || undefined"
+        >
+          {{ pathMissing ? "⚠ " : "" }}{{ workspaceDirName(currentWorkspace?.path ?? "") }}
         </span>
       </span>
       <span class="ws-chevron">▾</span>
@@ -66,7 +69,7 @@ function pick(id: string) {
         <span class="ws-item-dot" :style="{ background: workspaceColor(w.id) }"></span>
         <span class="ws-item-text">
           <span class="ws-item-name">{{ w.name }}</span>
-          <span class="ws-item-path">{{ formatWorkspacePath(w.path) }} · {{ w.conversation_count ?? 0 }} 会话</span>
+          <span class="ws-item-path" :title="w.path || undefined">{{ workspaceDirName(w.path) }} · {{ w.conversation_count ?? 0 }} 会话</span>
         </span>
       </div>
 
@@ -81,7 +84,7 @@ function pick(id: string) {
           <span class="ws-item-dot" :style="{ background: workspaceColor(w.id) }"></span>
           <span class="ws-item-text">
             <span class="ws-item-name">📦 {{ w.name }}</span>
-            <span class="ws-item-path">{{ formatWorkspacePath(w.path) }} · 已归档</span>
+            <span class="ws-item-path" :title="w.path || undefined">{{ workspaceDirName(w.path) }} · 已归档</span>
           </span>
         </div>
       </template>

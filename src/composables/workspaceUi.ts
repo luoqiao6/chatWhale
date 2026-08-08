@@ -12,8 +12,12 @@ export function workspaceColor(id: string): string {
   return WORKSPACE_COLORS[h % WORKSPACE_COLORS.length];
 }
 
-export function formatWorkspacePath(path: string): string {
-  return path ? path : "未配置目录";
+export function workspaceDirName(path: string): string {
+  if (!path) return "未配置目录";
+  const trimmed = path.replace(/[\\/]+$/, "");
+  if (!trimmed) return path;
+  const idx = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  return idx >= 0 ? trimmed.slice(idx + 1) : trimmed;
 }
 
 export function validateWorkspaceName(name: string): boolean {

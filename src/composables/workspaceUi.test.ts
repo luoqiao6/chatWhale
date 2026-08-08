@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   WORKSPACE_COLORS,
-  formatWorkspacePath,
   validateWorkspaceName,
+  workspaceDirName,
   workspaceColor,
 } from "./workspaceUi";
 
@@ -18,9 +18,16 @@ describe("workspaceUi", () => {
     expect(WORKSPACE_COLORS).toContain(a);
   });
 
-  it("空路径显示未配置目录", () => {
-    expect(formatWorkspacePath("")).toBe("未配置目录");
-    expect(formatWorkspacePath("/tmp/a")).toBe("/tmp/a");
+  it("目录名取路径最后一段", () => {
+    expect(workspaceDirName("/Volumes/Data/work/chatWhale")).toBe("chatWhale");
+    expect(workspaceDirName("C:\\Users\\foo\\project")).toBe("project");
+    expect(workspaceDirName("/a/b/")).toBe("b");
+    expect(workspaceDirName("project")).toBe("project");
+  });
+
+  it("根路径与空路径边界", () => {
+    expect(workspaceDirName("/")).toBe("/");
+    expect(workspaceDirName("")).toBe("未配置目录");
   });
 
   it("空间名校验拒绝空白", () => {
