@@ -177,7 +177,7 @@ const openMenuFor = ref<string | null>(null);
   position: relative;
   padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer;
   font-size: 13px; color: var(--text-secondary); margin-bottom: 2px;
-  display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden;
+  display: flex; align-items: center; gap: 8px; white-space: nowrap;
   transition: background 0.12s;
 }
 .conv-item:hover { background: var(--bg-hover); }
