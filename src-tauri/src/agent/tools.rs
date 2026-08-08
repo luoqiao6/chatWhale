@@ -1,4 +1,8 @@
 use crate::agent::approval::{policy_allows, ApprovalOutcome};
+use crate::agent::browser::tools::{
+    BrowserClickTool, BrowserCloseTool, BrowserFillTool, BrowserOpenTool, BrowserReadTool,
+    BrowserScreenshotTool, BrowserScrollTool,
+};
 use crate::agent::types::{
     AgentSettings, BrowserContentPolicy, ToolCall, ToolDef, ToolResult,
 };
@@ -50,6 +54,15 @@ impl ToolRegistry {
         r.register(Box::new(ListDirectoryTool::new(settings)));
         r.register(Box::new(SearchFilesTool::new(settings)));
         r.register(Box::new(ExecuteCommandTool::new(settings)));
+        if settings.browser_enabled {
+            r.register(Box::new(BrowserOpenTool::new(settings)));
+            r.register(Box::new(BrowserReadTool::new(settings)));
+            r.register(Box::new(BrowserClickTool::new(settings)));
+            r.register(Box::new(BrowserFillTool::new(settings)));
+            r.register(Box::new(BrowserScrollTool::new(settings)));
+            r.register(Box::new(BrowserScreenshotTool::new(settings)));
+            r.register(Box::new(BrowserCloseTool::new(settings)));
+        }
         r
     }
 

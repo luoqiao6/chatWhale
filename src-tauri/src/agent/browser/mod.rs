@@ -2,6 +2,7 @@ pub mod policy;
 pub mod locator;
 pub mod cdp;
 pub mod extract;
+pub mod tools;
 
 use crate::agent::browser::cdp::{BrowserProcess, CdpSession};
 use crate::agent::browser::extract::{PageSnapshot, SNAPSHOT_JS};

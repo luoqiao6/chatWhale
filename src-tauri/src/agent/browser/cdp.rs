@@ -61,22 +61,30 @@ impl CdpSession {
     }
 
     pub async fn navigate(&mut self, url: &str) -> Result<()> {
+        // goto 在目标 URL 完全加载后返回；随后等一个宏任务窗口再轮询就绪态
         self.page.goto(url).await.context("导航失败")?;
-        let _ = self.page.wait_for_navigation().await;
+        tokio::time::sleep(Duration::from_millis(300)).await;
         self.wait_ready(Duration::from_secs(30)).await
     }
 
     pub async fn wait_ready(&mut self, timeout: Duration) -> Result<()> {
         let deadline = tokio::time::Instant::now() + timeout;
+        let mut last_err: Option<anyhow::Error> = None;
         loop {
             if tokio::time::Instant::now() >= deadline {
-                return Err(anyhow!("页面加载超时"));
+                return Err(last_err.unwrap_or_else(|| anyhow!("页面加载超时")));
             }
-            let v = self.evaluate("document.readyState").await?;
-            if v.as_str() == Some("complete") {
-                // 给 SPA 首帧渲染留一个宏任务窗口
-                let _ = self.evaluate("new Promise(r => setTimeout(r, 300))").await;
-                return Ok(());
+            match self.evaluate("document.readyState").await {
+                Ok(v) if v.as_str() == Some("complete") => {
+                    // 给 SPA 首帧渲染留一个宏任务窗口
+                    let _ = self.evaluate("new Promise(r => setTimeout(r, 300))").await;
+                    return Ok(());
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    // 导航切换执行上下文期间评估可能瞬时失败，视为未就绪继续轮询
+                    last_err = Some(e);
+                }
             }
             tokio::time::sleep(Duration::from_millis(200)).await;
         }
