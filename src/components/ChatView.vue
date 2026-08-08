@@ -31,7 +31,7 @@ interface SendParams {
 const messages = ref<Message[]>([]);
 const isLoading = ref(false);
 const chatContainer = ref<HTMLElement | null>(null);
-const agentMode = ref(false);
+const agentMode = ref(true);
 const toolSources = ref<Record<string, string>>({});
 
 const isTauriEnv =
