@@ -245,16 +245,18 @@ pub enum BrowserApproval {
 
 pub fn parse_browser_policy(s: &str) -> BrowserContentPolicy {
     match s.trim() {
+        "strict" => BrowserContentPolicy::Strict,
         "normal" => BrowserContentPolicy::Normal,
         "trusted" => BrowserContentPolicy::Trusted,
-        _ => BrowserContentPolicy::Strict,
+        _ => BrowserContentPolicy::Normal,
     }
 }
 
 pub fn parse_browser_approval(s: &str) -> BrowserApproval {
     match s.trim() {
+        "navigation" => BrowserApproval::Navigation,
         "always" => BrowserApproval::Always,
-        _ => BrowserApproval::Navigation,
+        _ => BrowserApproval::Always,
     }
 }
 
@@ -301,10 +303,10 @@ impl Default for AgentSettings {
             approval_timeout: Duration::from_secs(60),
             max_result_bytes: 204_800,
             sensitive_paths: Vec::new(),
-            browser_enabled: false,
+            browser_enabled: true,
             browser_path: None,
-            browser_approval: BrowserApproval::Navigation,
-            browser_content_policy: BrowserContentPolicy::Strict,
+            browser_approval: BrowserApproval::Always,
+            browser_content_policy: BrowserContentPolicy::Normal,
             browser_domain_policy: HashMap::new(),
         }
     }
@@ -323,10 +325,10 @@ pub const AGENT_SETTING_KEYS: &[(&str, &str)] = &[
     ("agent.approval_timeout", "60"),
     ("agent.max_result_bytes", "204800"),
     ("agent.sensitive_paths", "[]"),
-    ("agent.browser_enabled", "false"),
+    ("agent.browser_enabled", "true"),
     ("agent.browser_path", ""),
-    ("agent.browser_approval", "navigation"),
-    ("agent.browser_content_policy", "strict"),
+    ("agent.browser_approval", "always"),
+    ("agent.browser_content_policy", "normal"),
     ("agent.browser_domain_policy", "{}"),
 ];
 
@@ -404,13 +406,13 @@ pub fn load_agent_settings(map: &HashMap<String, String>) -> AgentSettings {
         approval_timeout: parse_duration_secs(&get("agent.approval_timeout", "60"), 60),
         max_result_bytes: parse_usize(&get("agent.max_result_bytes", "204800"), 204_800),
         sensitive_paths: parse_string_list(&get("agent.sensitive_paths", "[]")),
-        browser_enabled: parse_bool(&get("agent.browser_enabled", "false"), false),
+        browser_enabled: parse_bool(&get("agent.browser_enabled", "true"), true),
         browser_path: {
             let p = get("agent.browser_path", "").trim().to_string();
             if p.is_empty() { None } else { Some(p) }
         },
-        browser_approval: parse_browser_approval(&get("agent.browser_approval", "navigation")),
-        browser_content_policy: parse_browser_policy(&get("agent.browser_content_policy", "strict")),
+        browser_approval: parse_browser_approval(&get("agent.browser_approval", "always")),
+        browser_content_policy: parse_browser_policy(&get("agent.browser_content_policy", "normal")),
         browser_domain_policy: parse_domain_policy(&get("agent.browser_domain_policy", "{}")),
     }
 }
@@ -493,7 +495,7 @@ mod tests {
         assert_eq!(parse_browser_policy("strict"), BrowserContentPolicy::Strict);
         assert_eq!(parse_browser_policy("normal"), BrowserContentPolicy::Normal);
         assert_eq!(parse_browser_policy("trusted"), BrowserContentPolicy::Trusted);
-        assert_eq!(parse_browser_policy("garbage"), BrowserContentPolicy::Strict);
+        assert_eq!(parse_browser_policy("garbage"), BrowserContentPolicy::Normal);
         assert_eq!(BrowserContentPolicy::Trusted.as_str(), "trusted");
     }
 
@@ -507,7 +509,7 @@ mod tests {
     fn parses_browser_approval_variants() {
         assert_eq!(parse_browser_approval("navigation"), BrowserApproval::Navigation);
         assert_eq!(parse_browser_approval("always"), BrowserApproval::Always);
-        assert_eq!(parse_browser_approval("x"), BrowserApproval::Navigation);
+        assert_eq!(parse_browser_approval("x"), BrowserApproval::Always);
     }
 
     #[test]
@@ -522,10 +524,10 @@ mod tests {
     fn load_settings_includes_browser_defaults() {
         let map = HashMap::new();
         let s = load_agent_settings(&map);
-        assert!(!s.browser_enabled);
+        assert!(s.browser_enabled);
         assert!(s.browser_path.is_none());
-        assert_eq!(s.browser_approval, BrowserApproval::Navigation);
-        assert_eq!(s.browser_content_policy, BrowserContentPolicy::Strict);
+        assert_eq!(s.browser_approval, BrowserApproval::Always);
+        assert_eq!(s.browser_content_policy, BrowserContentPolicy::Normal);
         assert!(s.browser_domain_policy.is_empty());
     }
 }
