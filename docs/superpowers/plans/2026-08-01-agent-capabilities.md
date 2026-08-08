@@ -1,8 +1,10 @@
 # chatWhale Agent 能力实现计划
 
+> **状态：** 已全部实施完成（2026-08）。本计划为实施记录，13 个 Task 全部步骤均已落地并提交；设计文档已同步至 v1.3（状态：已实现）。实施完成后项目还引入了工作空间作用域化与前端 vitest 测试，现状以 `AGENTS.md` / `README.md` 验收口径为准。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 按 `docs/agent-capabilities-design.md`（v1.2，状态：待实现）完成 Agent 模式全部功能：Rust 端工具调用回路、内置文件/命令工具、命令审批回路、AGENT.md 注入、Skills 系统、MCP 集成，以及前端 Agent UI（useAgent / ChatView / MessageBubble / AgentSettings / Sidebar）。
+**Goal:** 按 `docs/agent-capabilities-design.md`（v1.3，状态：已实现）完成 Agent 模式全部功能：Rust 端工具调用回路、内置文件/命令工具、命令审批回路、AGENT.md 注入、Skills 系统、MCP 集成，以及前端 Agent UI（useAgent / ChatView / MessageBubble / AgentSettings / Sidebar）。
 
 **Architecture:** 工具执行回路放在 Rust 后端（`src-tauri/src/agent/`），单 Agent 实例，流式 SSE 由 `agent/llm.rs` 解析并转发事件到前端；前端只负责发指令、监听事件渲染、回传审批。安全边界全部由 Rust 工具层强制（路径沙箱、deny-list、命令审批、输出脱敏），不依赖 Tauri capabilities。
 
@@ -22,7 +24,7 @@
 - 提交前验收：`npm run typecheck`、`npm run build`、`cargo test`、`cargo build`（或 `cargo check`）。
 - API Key 只存 localStorage，不得写入源码/日志/仓库。
 - `v-html` 渲染模型内容维持现状（marked 无净化）；Agent 事件 payload 不含原始 HTML 假设。
-- 前端无测试框架，遵循 AGENTS.md 验收口径（typecheck + build + 冒烟）；核心逻辑由 Rust 单元测试覆盖。
+- 前端测试：实施完成后已引入 vitest（`npm test`，`src/composables/*.test.ts`）；核心逻辑由 Rust 单元测试覆盖，验收口径以 AGENTS.md 为准（typecheck + test + build + cargo test）。
 - 版本锁定：crates.io 经核实 rmcp 最新为 3.1.0（设计稿 0.4 已过时且 3.x API 变动大、官方示例缺失），MCP 传输层按协议（JSON-RPC 2.0 over stdio NDJSON）手写实现，符合文档"假 server fixture 集成测试"要求；`transport` 一期仅 `stdio`。
 
 ---
@@ -72,7 +74,7 @@ src/
 **Interfaces:**
 - Produces: `agent::types::{ChatMessage, ToolCall, ToolDef, UsageCounter, AgentSettings, ApprovalPolicy, WhitelistEntry, AgentChatParams, McpServerConfig}`，供后续任务使用。
 
-- [ ] **Step 1: 添加依赖**
+- [x] **Step 1: 添加依赖**
 
 `src-tauri/Cargo.toml` 的 `[dependencies]` 追加：
 
@@ -82,7 +84,7 @@ regex = "1"
 libc = "0.2"
 ```
 
-- [ ] **Step 2: 创建 `src-tauri/src/agent/types.rs`**
+- [x] **Step 2: 创建 `src-tauri/src/agent/types.rs`**
 
 ```rust
 use serde::{Deserialize, Serialize};
@@ -318,7 +320,7 @@ pub fn load_agent_settings(map: &HashMap<String, String>) -> AgentSettings {
 }
 ```
 
-- [ ] **Step 3: 创建 `src-tauri/src/agent/mod.rs` 骨架**
+- [x] **Step 3: 创建 `src-tauri/src/agent/mod.rs` 骨架**
 
 ```rust
 pub mod agent_config;
@@ -330,18 +332,18 @@ pub mod tools;
 pub mod types;
 ```
 
-- [ ] **Step 4: `src-tauri/src/lib.rs` 挂载模块**
+- [x] **Step 4: `src-tauri/src/lib.rs` 挂载模块**
 
 在 `mod db; mod sse;` 后追加 `mod agent;`。
 
-- [ ] **Step 5: 验证编译**
+- [x] **Step 5: 验证编译**
 
 Run: `cd src-tauri && cargo check`
 Expected: 编译通过（提示 types.rs 中未使用字段告警可先忽略；approval/llm/tools/skills/agent_config/mcp 模块尚未创建，因此 Step 3 暂只声明 `mcp` 等已存在模块——**本步骤先仅声明 `pub mod types;`，其余模块在各自任务中再补声明，避免编译错误**）。
 
 > 修正说明：Step 3 实际先写 `pub mod types;`，后续任务逐个追加 `pub mod xxx;`。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/src/agent src-tauri/src/lib.rs
@@ -360,7 +362,7 @@ git commit -m "feat(agent): 添加依赖与共享类型骨架"
 - Consumes: `types::{ChatMessage, ToolDef, AgentSettings, AgentChatParams, UsageCounter}`, `AgentRuntime`（mod.rs 定义于 Task 3，本任务先用参数透传：`app: &AppHandle, window_label: Option<&str>, runtime: &AgentRuntime, ...`）。
 - Produces: `ChoiceMessage { content, reasoning_content, tool_calls }`, `StreamChoice { message, finish_reason }`, `send_chat_stream(...) -> anyhow::Result<StreamChoice>`；纯函数 `parse_stream_chunk(&str) -> Option<ParsedDelta>`（测试用）。
 
-- [ ] **Step 1: 写失败测试（RED）**
+- [x] **Step 1: 写失败测试（RED）**
 
 在 `src-tauri/src/agent/llm.rs` 内写测试（先于实现）：
 
@@ -400,12 +402,12 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `cd src-tauri && cargo test agent::llm`
 Expected: FAIL（`parse_stream_chunk` 未定义）。
 
-- [ ] **Step 3: 实现 llm.rs**
+- [x] **Step 3: 实现 llm.rs**
 
 ```rust
 use crate::agent::types::{AgentChatParams, AgentSettings, ChatMessage, ToolDef, Usage, UsageCounter};
@@ -622,11 +624,11 @@ pub async fn send_chat_stream(
 
 > 注：`emit_agent_event`、`AgentRuntime` 在 Task 3 的 mod.rs 定义；本文件先引用（编译到 Task 3 后通过）。`runtime.usage` 为 `Arc<UsageCounter>`。
 
-- [ ] **Step 4: 运行测试确认通过（GREEN）**
+- [x] **Step 4: 运行测试确认通过（GREEN）**
 
 Run: `cd src-tauri && cargo test agent::llm`（Task 3 完成前若因 mod.rs 引用编译不过，可先注释 `send_chat_stream` 中 emit 相关行或临时提供桩；计划执行时以实际编译为准，保持测试绿）
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src-tauri/src/agent/llm.rs src-tauri/src/agent/mod.rs
@@ -647,7 +649,7 @@ git commit -m "feat(agent): 流式 SSE 解析与 usage 累计"
 - Consumes: `types::*`, `llm::send_chat_stream`, `approval::ApprovalManager`, `tools::ToolRegistry`。
 - Produces: `AgentRuntime { cancellation, usage: Arc<UsageCounter>, window_label }`；`emit_agent_event(app, label, event, payload) -> tauri::Result<()>`；`run_agent(app, window_label, params, settings, mcp_configs)`；`trim_messages_for_request(messages) -> Vec<ChatMessage>`；commands `agent_chat` / `agent_cancel` / `agent_approve`。
 
-- [ ] **Step 1: 写失败测试（RED）— 消息序列与裁剪**
+- [x] **Step 1: 写失败测试（RED）— 消息序列与裁剪**
 
 在 `src-tauri/src/agent/mod.rs` 内：
 
@@ -687,12 +689,12 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `cd src-tauri && cargo test agent::mod`
 Expected: FAIL（`trim_messages_for_request` 未定义）。
 
-- [ ] **Step 3: 实现 mod.rs（核心回路）**
+- [x] **Step 3: 实现 mod.rs（核心回路）**
 
 ```rust
 pub mod agent_config;
@@ -970,7 +972,7 @@ pub fn content_hash(s: &str) -> String {
 
 > 注：`approval::ApprovalOutcome`、`ApprovalManager::request`、`mcp` 模块 API、`ToolRegistry::with_builtins`、`ToolContext`、`SkillManager` 等在后续任务定义；本任务按最终签名编写，编译随 Task 4/5/6/7/8 逐步通过。若中途 `cargo check` 因未定义项失败，按依赖顺序先完成对应任务再验证。
 
-- [ ] **Step 4: lib.rs 接线（AppState + 3 个 command）**
+- [x] **Step 4: lib.rs 接线（AppState + 3 个 command）**
 
 ```rust
 use crate::agent::approval::ApprovalManager;
@@ -1033,12 +1035,12 @@ async fn agent_approve(state: State<'_, AppState>, id: String, approved: bool) -
 
 > `resolve_global` 是审批全局注册表的便捷入口，定义于 Task 4 approval.rs。
 
-- [ ] **Step 5: 运行测试确认通过（GREEN）**
+- [x] **Step 5: 运行测试确认通过（GREEN）**
 
 Run: `cd src-tauri && cargo test agent::mod`
 Expected: PASS（trim 两个用例）。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src-tauri/src/agent src-tauri/src/lib.rs
@@ -1056,7 +1058,7 @@ git commit -m "feat(agent): Agent 运行回路、单实例状态与取消/审批
 - Consumes: `types::{ApprovalPolicy, AgentSettings, WhitelistEntry}`。
 - Produces: `ApprovalOutcome { Granted, Rejected(String), Timeout, Cancelled }`；`ApprovalManager::request(app, window_label, tool_name, command, policy, timeout, cancellation) -> ApprovalOutcome`；`ApprovalManager::resolve(id, approved) -> bool`；全局函数 `resolve_global(id, approved) -> bool`（静态注册表，供 lib.rs command 使用）；`normalized_command(&str) -> String`；`is_whitelisted(&AgentSettings, &str, Option<&str>) -> bool`。
 
-- [ ] **Step 1: 写失败测试（RED）**
+- [x] **Step 1: 写失败测试（RED）**
 
 ```rust
 #[cfg(test)]
@@ -1095,11 +1097,11 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `cd src-tauri && cargo test agent::approval`
 
-- [ ] **Step 3: 实现 approval.rs**
+- [x] **Step 3: 实现 approval.rs**
 
 ```rust
 use crate::agent::types::{AgentSettings, ApprovalPolicy, WhitelistEntry};
@@ -1226,11 +1228,11 @@ pub fn policy_allows(settings: &AgentSettings, command: &str, cwd: Option<&str>)
 
 > 说明：`policy_allows` 返回 `None` = 无需审批直接执行（白名单命中）；`Some(false)` = 需审批；`Some(true)` = 禁用。`resolve_global` 使用全局注册表，实际运行中的 manager 需要同步注册——为简化，**AgentRuntime 内部也使用同一个全局 manager**（Task 3 的 `ApprovalManager::new()` 改为 `approval::global_manager()` 的克隆引用；计划执行时调整 `run_agent_inner` 中的 `Arc<ApprovalManager>` 为 `global_manager()` 直接引用，避免双注册表）。
 
-- [ ] **Step 4: 运行确认通过（GREEN）**
+- [x] **Step 4: 运行确认通过（GREEN）**
 
 Run: `cd src-tauri && cargo test agent::approval`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src-tauri/src/agent/approval.rs
@@ -1248,7 +1250,7 @@ git commit -m "feat(agent): 命令审批回路与白名单策略"
 - Consumes: `types::{AgentSettings, ToolDef, ToolCall, ApprovalPolicy}`, `approval::{policy_allows, is_whitelisted, ApprovalOutcome}`。
 - Produces: `ToolResult { success, content }`（`error()` 构造）；`ToolContext<'a>`；`Tool` trait（async）；`ToolRegistry::with_builtins(settings) / list_definitions() / execute(ctx, call)`；沙箱 `resolve_workspace_path`、deny 检查 `is_denied_path`、`redact_secrets`、`truncate_result`。
 
-- [ ] **Step 1: 写失败测试（RED）**
+- [x] **Step 1: 写失败测试（RED）**
 
 ```rust
 #[cfg(test)]
@@ -1313,11 +1315,11 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `cd src-tauri && cargo test agent::tools`
 
-- [ ] **Step 3: 实现 tools.rs**
+- [x] **Step 3: 实现 tools.rs**
 
 ```rust
 use crate::agent::approval::{policy_allows, ApprovalOutcome};
@@ -1524,11 +1526,11 @@ impl Tool for ReadFileTool {
 > - `search_files`: glob→regex 递归搜索文件内容，跳过 deny 与 `.git`，最多 100 个命中，截断。
 > - `execute_command`: `tokio::process::Command::new("sh").arg("-c").arg(command)`，`process_group(0)`（unix），stdout/stderr piped，`tokio::time::timeout(command_timeout)`，超时 `libc::killpg(child.id(), SIGKILL)`；cwd 解析：参数 cwd（相对 workspace）→ workspace_root → 当前目录；输出合并 stdout+stderr。
 
-- [ ] **Step 4: 运行确认通过（GREEN）**
+- [x] **Step 4: 运行确认通过（GREEN）**
 
 Run: `cd src-tauri && cargo test agent::tools`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src-tauri/src/agent/tools.rs
@@ -1545,7 +1547,7 @@ git commit -m "feat(agent): 内置工具、路径沙箱、deny-list、脱敏与�
 **Interfaces:**
 - Produces: `AgentConfig { workspace_root, agent_md_content, global_agent_md, skills_dir }`；`AgentConfig::load(workspace_root)`；`system_prompt_base()`；`agent_md_source()`。
 
-- [ ] **Step 1: 写失败测试（RED）**
+- [x] **Step 1: 写失败测试（RED）**
 
 ```rust
 #[cfg(test)]
@@ -1572,11 +1574,11 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `cd src-tauri && cargo test agent::agent_config`
 
-- [ ] **Step 3: 实现 agent_config.rs**
+- [x] **Step 3: 实现 agent_config.rs**
 
 ```rust
 use std::path::{Path, PathBuf};
@@ -1631,11 +1633,11 @@ fn fs_read(path: &Path) -> Option<String> {
 
 > 说明：项目 AGENT.md 在 `run_agent_inner` 中经首次确认后追加（见 Task 3 代码），`system_prompt_base` 只含安全规则 + 全局 AGENT.md。
 
-- [ ] **Step 4: 运行确认通过（GREEN）**
+- [x] **Step 4: 运行确认通过（GREEN）**
 
 Run: `cd src-tauri && cargo test agent::agent_config`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src-tauri/src/agent/agent_config.rs
@@ -1652,7 +1654,7 @@ git commit -m "feat(agent): AGENT.md 读取、合并与安全分层注入"
 **Interfaces:**
 - Produces: `Skill { name, description, triggers, instructions, tools: Vec<ToolDef>, source_path }`；`SkillManager::new(skills_dir, workspace_root) / load_all() / matching_skills(&str) / system_prompt_fragment(&[&Skill])`。
 
-- [ ] **Step 1: 写失败测试（RED）**
+- [x] **Step 1: 写失败测试（RED）**
 
 ```rust
 #[cfg(test)]
@@ -1696,11 +1698,11 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `cd src-tauri && cargo test agent::skills`
 
-- [ ] **Step 3: 实现 skills.rs**
+- [x] **Step 3: 实现 skills.rs**
 
 ```rust
 use crate::agent::types::ToolDef;
@@ -1840,11 +1842,11 @@ fn tools_field(front: &str) -> Vec<ToolDef> {
 
 > 说明：`tools_field` v1 仅做解析占位，实际映射逻辑：若 skill 声明 `uses: <内置工具名>`，合并阶段直接采用内置 ToolDef（内置优先、去重），与设计稿 6.2 一致；SKILL.md 本身不包含可执行代码。
 
-- [ ] **Step 4: 运行确认通过（GREEN）**
+- [x] **Step 4: 运行确认通过（GREEN）**
 
 Run: `cd src-tauri && cargo test agent::skills`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src-tauri/src/agent/skills.rs
@@ -1865,7 +1867,7 @@ git commit -m "feat(agent): SKILL.md 解析、触发匹配与注入"
 **Interfaces:**
 - Produces: `McpServerConfig`（serde camelCase）、`TransportKind`、`McpTransport::spawn/initialize/notify_initialized/list_tools/call_tool/shutdown`；`McpManager::new/connect_all/all_tools/call_tool/is_mcp_tool/source_for/shutdown_all`；`mcp_tool_name(server_id, name)`。
 
-- [ ] **Step 1: 写失败测试（RED）— 命名映射单测 + 传输集成测试**
+- [x] **Step 1: 写失败测试（RED）— 命名映射单测 + 传输集成测试**
 
 `mcp/types.rs` 内：
 
@@ -1916,11 +1918,11 @@ async fn fake_server_list_and_call_tools() {
 }
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `cd src-tauri && cargo test --test mcp_integration`（先失败：模块不存在）
 
-- [ ] **Step 3: 实现 types.rs**
+- [x] **Step 3: 实现 types.rs**
 
 ```rust
 use serde::{Deserialize, Serialize};
@@ -1977,7 +1979,7 @@ pub fn short_hash(s: &str) -> String {
 }
 ```
 
-- [ ] **Step 4: 实现 transport.rs**
+- [x] **Step 4: 实现 transport.rs**
 
 ```rust
 use crate::agent::mcp::types::McpServerConfig;
@@ -2077,7 +2079,7 @@ impl McpTransport {
 }
 ```
 
-- [ ] **Step 5: 实现 mod.rs（McpManager）**
+- [x] **Step 5: 实现 mod.rs（McpManager）**
 
 ```rust
 pub mod transport;
@@ -2249,7 +2251,7 @@ fn extract_text(v: &Value) -> String {
 }
 ```
 
-- [ ] **Step 6: 创建 fake server fixture**
+- [x] **Step 6: 创建 fake server fixture**
 
 `src-tauri/tests/fixtures/fake_mcp_server.sh`：
 
@@ -2285,11 +2287,11 @@ done
 
 `chmod +x src-tauri/tests/fixtures/fake_mcp_server.sh`
 
-- [ ] **Step 7: 运行全部测试（GREEN）**
+- [x] **Step 7: 运行全部测试（GREEN）**
 
 Run: `cd src-tauri && cargo test --test mcp_integration && cargo test agent::mcp`
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src-tauri/src/agent/mcp src-tauri/tests
@@ -2307,7 +2309,7 @@ git commit -m "feat(agent): MCP stdio 客户端、工具发现/调用与命名�
 **Interfaces:**
 - Produces: `Database::{get_all_agent_settings, get_agent_setting, set_agent_setting, list_mcp_servers, add_mcp_server, update_mcp_server, remove_mcp_server, get_enabled_mcp_servers}`；commands `list_builtin_tools / list_mcp_servers / add_mcp_server / remove_mcp_server / update_mcp_server / get_agent_settings / set_agent_settings`。
 
-- [ ] **Step 1: 写失败测试（RED）— db 测试**
+- [x] **Step 1: 写失败测试（RED）— db 测试**
 
 `src-tauri/src/db.rs` 内：
 
@@ -2341,11 +2343,11 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `cd src-tauri && cargo test db::tests`
 
-- [ ] **Step 3: 实现 db.rs 扩展**
+- [x] **Step 3: 实现 db.rs 扩展**
 
 ```rust
 use crate::agent::mcp::types::McpServerConfig;
@@ -2434,7 +2436,7 @@ fn row_to_server(row: &rusqlite::Row) -> rusqlite::Result<McpServerConfig> {
 
 （需 `use rusqlite::OptionalExtension;`。）
 
-- [ ] **Step 4: lib.rs 补全剩余 commands**
+- [x] **Step 4: lib.rs 补全剩余 commands**
 
 ```rust
 #[tauri::command]
@@ -2486,11 +2488,11 @@ fn set_agent_settings(state: State<AppState>, settings: HashMap<String, String>)
 
 注册到 `invoke_handler`；`use crate::agent::mcp::types::McpServerConfig; use crate::agent::types::ToolDef;`。
 
-- [ ] **Step 5: 运行确认通过（GREEN）**
+- [x] **Step 5: 运行确认通过（GREEN）**
 
 Run: `cd src-tauri && cargo test db::tests && cargo check`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src-tauri/src/db.rs src-tauri/src/lib.rs
@@ -2508,7 +2510,7 @@ git commit -m "feat(agent): 数据库扩展与 MCP/设置管理命令"
 **Interfaces:**
 - Produces: `AgentChatParams / ToolExecution / ApprovalRequest / AgentUsage / AgentDonePayload` 类型；`useAgent(messages, saveMessages)` 返回 `{ isAgentRunning, toolStates, pendingApproval, agentUsage, agentError, lastReason, startAgent, cancelAgent, approveCommand, cleanup }`。
 
-- [ ] **Step 1: 类型扩展（src/types/index.ts）**
+- [x] **Step 1: 类型扩展（src/types/index.ts）**
 
 ```ts
 export interface AgentChatParams {
@@ -2553,7 +2555,7 @@ export interface AgentDonePayload {
 }
 ```
 
-- [ ] **Step 2: 创建 useAgent.ts**
+- [x] **Step 2: 创建 useAgent.ts**
 
 ```ts
 import { ref, type Ref, type UnwrapRef } from "vue";
@@ -2677,11 +2679,11 @@ export function useAgent(messages: Ref<Message[]>, saveMessages: () => void) {
 }
 ```
 
-- [ ] **Step 3: 验证**
+- [x] **Step 3: 验证**
 
 Run: `npm run typecheck` — Expected: 0 errors（注意 `toolStates` 类型为 `Ref<Record<string, ToolExecution>>`，组件内使用 `.value` 或由 Vue 自动解包；`UnwrapRef` 未使用时删除 import）。
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/types/index.ts src/composables/useAgent.ts
@@ -2701,7 +2703,7 @@ git commit -m "feat(agent): 前端 Agent 类型与 useAgent composable"
 - Consumes: `useAgent` 返回值；`ChatInput` 新增 `agentMode` prop 与 `toggleAgent` 事件。
 - Produces: Agent 模式发送、审批卡片（输入区上方）、工具活动面板（运行中卡片）、取消按钮、消息流中工具卡片状态/来源/结果渲染。
 
-- [ ] **Step 1: ChatInput.vue 增加 Agent 开关**
+- [x] **Step 1: ChatInput.vue 增加 Agent 开关**
 
 props 增加 `agentMode: boolean`，emits 增加 `toggleAgent: []`。在 `input-actions` 内、发送按钮前加：
 
@@ -2721,7 +2723,7 @@ props 增加 `agentMode: boolean`，emits 增加 `toggleAgent: []`。在 `input-
 
 样式：`.btn-input.active { color: var(--accent); background: var(--accent-bg); }`。Agent 模式下隐藏 thinking/effort 参数或保持可用（保持可用，后端按参数生效）。
 
-- [ ] **Step 2: ChatView.vue 接入 useAgent**
+- [x] **Step 2: ChatView.vue 接入 useAgent**
 
 ```ts
 import { useAgent } from "../composables/useAgent";
@@ -2797,7 +2799,7 @@ async function handleSend(params: SendParams) {
 
 组件卸载时调用 `cleanup()`（`onUnmounted`）。`ChatInput` 传入 `:agent-mode="agentMode"` 并监听 `@toggle-agent`。运行中禁用切换。
 
-- [ ] **Step 3: MessageBubble.vue 工具卡片状态化**
+- [x] **Step 3: MessageBubble.vue 工具卡片状态化**
 
 增加 props：`toolSources?: Record<string, string>`。工具卡片渲染逻辑：
 
@@ -2853,12 +2855,12 @@ const toolResults = computed(() => {
 
 （`computed` 由 ChatView 已有导入；MessageBubble 以 props 接收 `tool-sources` 与 `tool-results`。）
 
-- [ ] **Step 4: 验证**
+- [x] **Step 4: 验证**
 
 Run: `npm run typecheck && npm run build`
 Expected: 退出码 0。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/ChatView.vue src/components/ChatInput.vue src/components/MessageBubble.vue
@@ -2878,7 +2880,7 @@ git commit -m "feat(agent): ChatView Agent 模式、审批卡片与工具卡片�
 - Consumes: commands `get_agent_settings / set_agent_settings / list_mcp_servers / add_mcp_server / update_mcp_server / remove_mcp_server / list_builtin_tools`；`@tauri-apps/plugin-dialog` 目录选择。
 - Produces: Agent 设置弹窗（workspace、skills 目录、MCP 管理、审批策略+白名单、超时、结果上限、敏感路径）。
 
-- [ ] **Step 1: 创建 AgentSettings.vue**
+- [x] **Step 1: 创建 AgentSettings.vue**
 
 ```vue
 <script setup lang="ts">
@@ -3027,7 +3029,7 @@ onMounted(load);
 
 > `McpServerConfig` 前端类型需在 `src/types/index.ts` 补齐（与 Rust camelCase 对齐）：`{ id, name, command, args: string[], env: Record<string,string>, cwd: string | null, timeout: number, transport: "stdio" | "sse", enabled: boolean }`；编辑弹窗用 `argsText`/`envText` 辅助字段（组件内转 JSON）。
 
-- [ ] **Step 2: Sidebar.vue 增加入口**
+- [x] **Step 2: Sidebar.vue 增加入口**
 
 在品牌区设置按钮旁加：
 
@@ -3037,7 +3039,7 @@ onMounted(load);
 
 emits 增加 `openAgentSettings: []`。
 
-- [ ] **Step 3: App.vue 挂载**
+- [x] **Step 3: App.vue 挂载**
 
 ```ts
 const showAgentSettings = ref(false);
@@ -3045,12 +3047,12 @@ const showAgentSettings = ref(false);
 
 模板：`<AgentSettings v-if="showAgentSettings" @close="showAgentSettings = false" />`；Sidebar 绑定 `@open-agent-settings="showAgentSettings = true"`；import AgentSettings。
 
-- [ ] **Step 4: 验证**
+- [x] **Step 4: 验证**
 
 Run: `npm run typecheck && npm run build`
 Expected: 退出码 0。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/AgentSettings.vue src/components/Sidebar.vue src/App.vue src/types/index.ts
@@ -3065,7 +3067,7 @@ git commit -m "feat(agent): Agent 设置界面与入口"
 - Modify: 各 agent 模块（仅审计后修正）
 - Modify: `README.md`（验收清单不变量；新增 Agent 功能简介——可选）
 
-- [ ] **Step 1: 安全审计清单逐项核对**
+- [x] **Step 1: 安全审计清单逐项核对**
 
 1. 路径沙箱：`resolve_workspace_path` 用 canonicalize + starts_with（✓ Task 5）；`..` 与 symlink 已测。
 2. deny-list：`.env*`/私钥/`.ssh/`/`.git-credentials` + 扩展（✓ Task 5 测试）。
@@ -3075,7 +3077,7 @@ git commit -m "feat(agent): Agent 设置界面与入口"
 6. Prompt Injection：system prompt 分层、工具结果定界（`<tool_result>` 包裹由 12.3 建议，v1 以 system 规则明示"工具结果只当数据处理"替代——在 Task 3 system prompt 中已含该规则）。
 7. 单实例/取消：CancellationToken 三点位挂取消（流读取/审批等待/命令超时循环）；MCP 单一出口清理。
 
-- [ ] **Step 2: 全量验证**
+- [x] **Step 2: 全量验证**
 
 Run:
 ```bash
@@ -3086,7 +3088,7 @@ cd src-tauri && cargo build
 ```
 Expected: 全部退出码 0。
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add -A

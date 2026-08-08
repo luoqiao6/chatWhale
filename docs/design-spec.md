@@ -138,7 +138,8 @@ chatWhale 是一款跨平台（macOS / Windows / Linux）的桌面端大模型�
 
 - 参数控制：`tools` 数组 + `tool_choice` (auto/none/required)
 - UI 展示：每个 tool call 以独立卡片展示，含函数名、参数 JSON、返回结果
-- 执行循环：模型返回 tool_calls → 前端执行业务逻辑 → tool role 消息回传 → 模型继续
+- 普通模式：仅透传/展示模型返回的 tool_calls 与成对 tool 结果消息，不执行工具
+- Agent 模式：工具调用回路由 Rust 后端执行（内置工具、SKILL.md、MCP、命令审批），循环与安全模型详见 `docs/agent-capabilities-design.md`
 - strict 模式：`base_url="/beta"` + `strict: true`，严格的 JSON Schema 校验
 
 ### 6.3 流式响应 (SSE)

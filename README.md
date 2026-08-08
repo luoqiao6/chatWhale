@@ -20,9 +20,21 @@
 ### 对话管理
 
 - **多会话管理** — 创建、切换、删除对话，按时间分组（今天 / 本周 / 更早）
-- **本地持久化** — 基于 localStorage 存储对话记录，刷新不丢失
+- **工作空间管理** — 新建（可复制来源设置与 MCP）、重命名、归档/恢复、彻底删除（二次确认）；会话、Agent 设置与 MCP 均按空间隔离
+- **本地持久化** — 基于 SQLite（Rust rusqlite）存储会话与工作空间数据，刷新不丢失；API Key 仅保存在 localStorage
 - **对话导出** — 一键导出对话为 Markdown 文件（含思考内容）
 - **对话分享** — 一键复制对话内容到剪贴板
+
+### Agent 模式
+
+- **Agent 开关** — 输入区工具图标切换普通/Agent 模式；浏览器（非 Tauri）环境禁用并提示需要桌面运行环境
+- **工具调用回路（Rust 后端）** — LLM 返回 tool_calls 后自动执行并把结果回传，循环直至完成；支持取消与单实例约束
+- **内置工具** — `read_file` / `write_file` / `list_directory` / `search_files` / `execute_command`，路径沙箱 + 敏感文件 deny-list + 结果脱敏/截断
+- **Skills 系统** — 加载 SKILL.md（全局 `~/.chatwhale/skills` 与项目 `.skills/`），按 triggers 关键词匹配注入指令与声明工具，最多 3 个
+- **AGENT.md 支持** — 自动读取工作区根目录 AGENT.md 注入 system prompt，首次加载需用户确认
+- **MCP 集成** — stdio 传输，工具按 `mcp__<server>__<tool>` 命名映射，按工作空间管理
+- **命令审批** — always / whitelist / never 策略，审批卡片即时批准或拒绝，超时按拒绝处理
+- **Agent 设置** — 工作目录、Skills 目录、MCP、审批策略、超时、结果上限、敏感路径（按工作空间作用域）
 
 ### 主题系统
 
@@ -116,6 +128,7 @@ npm run tauri build   # 生产构建
 
 ```bash
 npm run typecheck   # 类型检查，要求退出码为 0
+npm test            # 前端单元测试（vitest run），要求退出码为 0
 npm run build       # 生产构建（已包含 typecheck + vitest + vite build）
 cd src-tauri && cargo test   # Rust 后端单元与 MCP 集成测试，要求退出码为 0
 ```
@@ -128,6 +141,7 @@ cd src-tauri && cargo test   # Rust 后端单元与 MCP 集成测试，要求退
 2. 发送一条消息，确认 SSE 流式响应逐 token 渲染、无控制台错误
 3. 按变更范围验证对应功能，例如对话导出 / 分享、文件上传、主题切换
 4. 工作空间：切换工作空间 → 会话列表按空间过滤；新建空间可复制来源设置与 MCP；归档后只读横幅并禁止新建/发送，恢复后可对话；彻底删除需输入空间名二次确认
+5. Agent 模式（桌面环境）：开启 Agent 开关发送消息 → 观察工具调用卡片与命令审批卡片 → 批准/拒绝后循环继续，最终 `agent-done` 正常落库；浏览器模式下开关禁用并提示；Agent 运行中再次发送应被拒绝/等待
 
 验收全部通过后才能提交；本项目不使用外部 CI 服务，验收在本地提交前完成。
 
