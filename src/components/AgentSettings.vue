@@ -41,6 +41,7 @@ async function save() {
     // 校验 JSON 字段
     JSON.parse(settings.value["agent.command_whitelist"] || "[]");
     JSON.parse(settings.value["agent.sensitive_paths"] || "[]");
+    JSON.parse(settings.value["agent.browser_domain_policy"] || "{}");
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("set_agent_settings", {
       workspaceId: props.workspaceId,
@@ -128,6 +129,9 @@ function placeholderFor(key: string): string {
   }
   if (key === "agent.sensitive_paths") {
     return '["**/secrets/*"]';
+  }
+  if (key === "agent.browser_domain_policy") {
+    return '{"example.com":"trusted","*.foo.com":"normal"}';
   }
   return "";
 }

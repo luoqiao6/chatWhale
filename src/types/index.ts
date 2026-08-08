@@ -60,6 +60,7 @@ export interface ToolExecution {
   status: "running" | "done" | "error";
   result?: string;
   error?: string;
+  image_path?: string;
 }
 
 export interface ApprovalRequest {

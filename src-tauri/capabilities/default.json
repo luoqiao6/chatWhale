@@ -9,5 +9,9 @@
     "dialog:default",
     "fs:default",
     "clipboard-manager:default"
-  ]
+  ],
+  "assetProtocol": {
+    "enable": true,
+    "scope": ["$APPDATA/**", "$TEMP/**"]
+  }
 }

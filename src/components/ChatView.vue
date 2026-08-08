@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onUnmounted } from "vue";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { useConversations } from "../composables/useConversations";
 import { useAgent, watchAgentLoading } from "../composables/useAgent";
 import ChatInput from "./ChatInput.vue";
@@ -35,6 +36,8 @@ const toolSources = ref<Record<string, string>>({});
 
 const isTauriEnv =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+const assetUrl = (p?: string) => (p ? convertFileSrc(p) : "");
 
 const MAX_LOG_BODY_LENGTH = 500;
 
@@ -471,6 +474,12 @@ onUnmounted(() => {
         <span class="tool-name">{{ ts.name }}</span>
         <span class="tool-source">{{ ts.source }}</span>
         <span v-if="ts.status !== 'running'" class="tool-result-preview">{{ ts.result }}</span>
+        <img
+          v-if="ts.image_path && ts.status === 'done'"
+          :src="assetUrl(ts.image_path)"
+          class="tool-thumb"
+          alt="browser screenshot"
+        />
       </div>
     </div>
 
@@ -481,8 +490,20 @@ onUnmounted(() => {
       </div>
       <pre class="approval-command">{{ pendingApproval.command }}</pre>
       <div class="approval-actions">
-        <button class="btn-approve" @click="approveCommand(pendingApproval.id, true)">批准</button>
-        <button class="btn-reject" @click="approveCommand(pendingApproval.id, false)">拒绝</button>
+        <template v-if="pendingApproval.choices && pendingApproval.choices.length">
+          <button class="btn-approve" @click="approveCommand(pendingApproval.id, true)">允许</button>
+          <button
+            v-for="c in pendingApproval.choices"
+            :key="c.level"
+            class="btn-approve"
+            @click="approveCommand(pendingApproval.id, true, c.level)"
+          >{{ c.label }}</button>
+          <button class="btn-reject" @click="approveCommand(pendingApproval.id, false)">拒绝</button>
+        </template>
+        <template v-else>
+          <button class="btn-approve" @click="approveCommand(pendingApproval.id, true)">批准</button>
+          <button class="btn-reject" @click="approveCommand(pendingApproval.id, false)">拒绝</button>
+        </template>
       </div>
     </div>
 
@@ -571,6 +592,10 @@ onUnmounted(() => {
 .tool-result-preview {
   flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--text-muted);
+}
+.tool-thumb {
+  max-height: 96px; border-radius: var(--radius-sm);
+  border: 1px solid var(--tool-border); object-fit: contain;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 

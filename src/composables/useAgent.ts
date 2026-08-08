@@ -130,6 +130,7 @@ export function useAgent(
           status: p.error ? "error" : "done",
           result: p.error ?? p.result,
           error: p.error ?? undefined,
+          image_path: p.image_path ?? undefined,
         });
       }),
     );
