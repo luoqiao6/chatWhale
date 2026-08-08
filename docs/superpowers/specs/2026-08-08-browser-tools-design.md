@@ -1,7 +1,7 @@
 # chatWhale 浏览器工具（CDP 驱动 Chrome/Edge）设计
 
 日期：2026-08-08
-状态：待审阅
+状态：已实现（2026-08-08，按实施计划落地）
 
 ## 1. 背景与目标
 
@@ -63,6 +63,11 @@ src-tauri/src/agent/browser/
 - 新增 `chromiumoxide`（异步 CDP 客户端，运行时 feature 用 tokio；具体版本与 feature 名在实施时以 crates.io 最新稳定版核实）。
 - 若 chromiumoxide 与目标 Chrome/Edge 版本出现兼容性问题（如 OOPIF、Target 域变更），备选方案：手写极简 CDP WebSocket 客户端（仅覆盖 Navigation/DOM/Screenshot/Input 四个域，规模可控）。
 - 可选：`url` crate 用于 URL 解析与规范化。
+
+实施说明：采用设计文档 4.2 的主方案 chromiumoxide（0.7.0，`src-tauri/src/agent/browser/cdp.rs`）。
+`cdp.rs` 只暴露启动/求值/导航/截图四个内部方法，把 chromiumoxide 小版本 API 差异隔离在单文件内
+（实现时按本地 crate 源码适配：`user_data_dir` / `chrome_executable` / `arg` / `with_head` /
+`goto` / `screenshot` 返回 `Vec<u8>`）。
 
 ### 4.3 浏览器启动参数
 

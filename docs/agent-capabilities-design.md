@@ -20,6 +20,9 @@
       （Skills 关键词匹配、事件按窗口定向发送、工作空间作用域、
        MCP 手写 NDJSON 传输、DB 幂等迁移、浏览器模式禁用 Agent）
     - 12.x 中尚未落地的方案统一标注"后续增强"，与实施计划偏差记录保持一致
+  修订说明 (v1.3 → v1.4):
+    - 新增浏览器工具能力（chromiumoxide 驱动 Chrome/Edge，可见窗口，
+      内容读取级别由用户选择），详见 docs/superpowers/specs/2026-08-08-browser-tools-design.md
 -->
 
 # chatWhale Agent 能力设计方案
@@ -30,6 +33,7 @@
 
 - **工具调用回路** — LLM 返回 tool_calls 后自动执行工具并将结果传回，形成完整的调用循环
 - **内置 Agent 工具** — 文件读写、目录浏览、命令执行、文件搜索等本地能力
+- **浏览器工具** — CDP 驱动系统 Chrome/Edge（可见窗口），支持打开/读取/点击/填表/滚动/截图/关闭，内容读取级别由用户选择（全局默认 + 域名覆盖 + 弹窗临时放宽）
 - **Skills 系统** — 加载 SKILL.md 文件，动态扩展 Agent 的指令和工具集
 - **AGENT.md 支持** — 自动读取项目根目录的 AGENT.md，注入项目级指令到 system prompt
 - **MCP 集成** — 连接外部 MCP Server，发现和调用第三方工具
