@@ -3,13 +3,14 @@ mod sse;
 pub mod agent;
 
 use crate::agent::approval;
+use crate::agent::browser::BrowserManager;
 use crate::agent::types::{AgentChatParams, UsageCounter};
 use crate::agent::AgentRuntime;
 use db::Database;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::agent::mcp::types::McpServerConfig;
 use crate::agent::tools::ToolRegistry;
@@ -300,6 +301,11 @@ pub fn run() {
         .manage(AppState {
             db: Mutex::new(db),
             agent: Mutex::new(None),
+        })
+        .setup(|app| {
+            let base = app.path().app_data_dir()?.join("browser-profiles");
+            app.manage(BrowserManager::new(base));
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             list_workspaces,

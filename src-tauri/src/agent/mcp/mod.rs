@@ -144,6 +144,7 @@ impl McpManager {
                 ToolResult {
                     success: true,
                     content,
+                    image_path: None,
                 }
             }
             Err(e) => {

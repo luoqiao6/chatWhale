@@ -159,10 +159,12 @@ pub struct UsageCounter {
     pub total_tokens: AtomicU64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ToolResult {
     pub success: bool,
     pub content: String,
+    #[serde(default)]
+    pub image_path: Option<String>,
 }
 
 impl ToolResult {
@@ -170,6 +172,7 @@ impl ToolResult {
         Self {
             success: false,
             content: format!("Error: {}", msg.into()),
+            image_path: None,
         }
     }
 }

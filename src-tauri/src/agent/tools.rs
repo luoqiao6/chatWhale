@@ -1,5 +1,7 @@
 use crate::agent::approval::{policy_allows, ApprovalOutcome};
-use crate::agent::types::{AgentSettings, ToolCall, ToolDef, ToolResult};
+use crate::agent::types::{
+    AgentSettings, BrowserContentPolicy, ToolCall, ToolDef, ToolResult,
+};
 use async_trait::async_trait;
 use regex::Regex;
 use serde_json::{json, Value};
@@ -16,6 +18,8 @@ pub struct ToolContext<'a> {
     pub settings: &'a AgentSettings,
     pub approval: &'a super::approval::ApprovalManager,
     pub cancellation: CancellationToken,
+    pub workspace_id: &'a str,
+    pub session_policy: Arc<tokio::sync::Mutex<Option<BrowserContentPolicy>>>,
 }
 
 #[async_trait]
@@ -308,6 +312,7 @@ impl Tool for ReadFileTool {
         ToolResult {
             success: true,
             content: out,
+            image_path: None,
         }
     }
 }
@@ -372,6 +377,7 @@ impl Tool for WriteFileTool {
             Ok(()) => ToolResult {
                 success: true,
                 content: format!("已写入 {} 字节", content.len()),
+                image_path: None,
             },
             Err(e) => ToolResult::error(format!("写入失败: {e}")),
         }
@@ -436,6 +442,7 @@ impl Tool for ListDirectoryTool {
         ToolResult {
             success: true,
             content: serde_json::to_string(&entries).unwrap_or_default(),
+            image_path: None,
         }
     }
 }
@@ -514,6 +521,7 @@ impl Tool for SearchFilesTool {
         ToolResult {
             success: true,
             content: serde_json::to_string(&matches).unwrap_or_default(),
+            image_path: None,
         }
     }
 }
@@ -606,6 +614,7 @@ impl Tool for ExecuteCommandTool {
                         ToolResult {
                             success: status.success(),
                             content: text,
+                            image_path: None,
                         }
                     }
                     Err(e) => ToolResult::error(format!("命令执行失败: {e}")),

@@ -199,6 +199,7 @@ async fn run_agent_inner(
 
     // 工具合并：内置 > 匹配技能 > MCP，上限 128
     let registry = ToolRegistry::with_builtins(settings);
+    let session_policy = Arc::new(tokio::sync::Mutex::new(None::<BrowserContentPolicy>));
     let mut tools: Vec<ToolDef> = registry.list_definitions();
     let mut tool_aliases: HashMap<String, String> = HashMap::new();
     for skill in &matched {
@@ -288,6 +289,8 @@ async fn run_agent_inner(
                                 settings,
                                 approval,
                                 cancellation: runtime.cancellation.clone(),
+                                workspace_id,
+                                session_policy: session_policy.clone(),
                             };
                             let result = if mcp.is_mcp_tool(&name) {
                                 mcp.call_tool(&name, &tool_call.function.arguments).await
@@ -302,11 +305,13 @@ async fn run_agent_inner(
                             let mut result = result;
                             result.content =
                                 tools::finalize_result(result.content, settings.max_result_bytes);
+                            let image_path = result.image_path.clone();
                             let _ = emit_agent_event(app, Some(window_label), EVENT_TOOL_RESULT, serde_json::json!({
                                 "id": tool_call.id,
                                 "name": name,
                                 "result": result.content,
                                 "error": if result.success { None } else { Some(result.content.clone()) },
+                                "image_path": image_path,
                             }));
                             messages.push(ChatMessage::tool_result(&tool_call.id, &result));
                         }
@@ -443,6 +448,7 @@ mod tests {
             &ToolResult {
                 success: true,
                 content: "ok".into(),
+                image_path: None,
             },
         )
     }
