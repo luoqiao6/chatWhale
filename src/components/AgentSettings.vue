@@ -227,7 +227,7 @@ onMounted(load);
 <style scoped>
 .settings-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-  display: flex; align-items: center; justify-content: center; z-index: 100;
+  display: flex; align-items: center; justify-content: center; z-index: 120;
 }
 .settings-panel {
   width: 520px; max-height: 84vh; background: var(--bg-card);
