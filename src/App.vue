@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
-import { useConversations } from "./composables/useConversations";
+import { isConversationEmpty, useConversations } from "./composables/useConversations";
 import { useWorkspaces } from "./composables/useWorkspaces";
 import Sidebar from "./components/Sidebar.vue";
 import ChatView from "./components/ChatView.vue";
@@ -22,11 +22,11 @@ const {
 
 const {
   groupedConversations,
-  conversations,
   loadConversations,
   createConversation,
   moveConversation,
   deleteConversation,
+  getConversation,
 } = useConversations();
 
 const currentTheme = ref<ThemeName>("deep-ocean");
@@ -81,12 +81,23 @@ function selectConversation(id: string) {
 }
 
 async function selectWorkspace(id: string) {
+  if (id === currentWorkspace.value?.id) return;
+  // 离开当前空间前删除空会话（用户未输入任何内容），避免残留"新对话"
+  if (currentConvId.value) {
+    const conv = getConversation(currentConvId.value);
+    if (conv && isConversationEmpty(conv)) {
+      await deleteConversation(currentConvId.value);
+    }
+  }
   switchWorkspace(id);
   await loadConversations(id);
-  // 会话仍属于目标空间则保留，否则回到空态
-  currentConvId.value = conversations.value.some((c) => c.id === currentConvId.value)
-    ? currentConvId.value
-    : null;
+  const ws = currentWorkspace.value;
+  if (!ws || ws.archived) {
+    currentConvId.value = null;
+    return;
+  }
+  const conv = await createConversation("新对话", currentModel.value, ws.id);
+  currentConvId.value = conv.id;
 }
 
 async function newConversation() {

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { groupConversationsByTime, useConversations } from "./useConversations";
+import {
+  groupConversationsByTime,
+  isConversationEmpty,
+  useConversations,
+} from "./useConversations";
 import type { Conversation } from "../types";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -64,11 +68,34 @@ describe("useConversations", () => {
     expect(groups[1].label).toBe("更早");
   });
 
+  it("isConversationEmpty 判定空会话", () => {
+    expect(isConversationEmpty(conv("e1", "w1", 1))).toBe(true);
+    expect(
+      isConversationEmpty({
+        ...conv("e2", "w1", 1),
+        messages: JSON.stringify([{ role: "user", content: "hi" }]),
+      }),
+    ).toBe(false);
+    expect(
+      isConversationEmpty({ ...conv("e3", "w1", 1), messages: "not-json" }),
+    ).toBe(true);
+  });
+
   it("moveConversation 改变会话归属（浏览器降级）", async () => {
     const c = useConversations();
     await c.loadConversations("w1");
     await c.moveConversation("c1", "w2");
     await c.loadConversations("w2");
     expect(c.conversations.value.map((x) => x.id)).toContain("c1");
+  });
+
+  it("deleteConversation 删除会话且不丢失其他空间数据（浏览器降级）", async () => {
+    const c = useConversations();
+    await c.loadConversations("w1");
+    await c.deleteConversation("c1");
+    const all = JSON.parse(localStorage.getItem("chatwhale-conversations") ?? "[]");
+    expect(all.map((x: Conversation) => x.id)).toEqual(["c2"]);
+    await c.loadConversations("w2");
+    expect(c.conversations.value.map((x) => x.id)).toEqual(["c2"]);
   });
 });

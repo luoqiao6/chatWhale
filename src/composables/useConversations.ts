@@ -49,6 +49,15 @@ export function groupConversationsByTime(
   return groups;
 }
 
+export function isConversationEmpty(conv: Conversation): boolean {
+  try {
+    const messages: unknown = JSON.parse(conv.messages);
+    return !Array.isArray(messages) || messages.length === 0;
+  } catch {
+    return true;
+  }
+}
+
 export function useConversations() {
   async function loadConversations(workspaceId: string) {
     try {
@@ -120,10 +129,11 @@ export function useConversations() {
       const { invoke } = await import("@tauri-apps/api/core");
       await invoke("delete_conversation", { id });
     } catch {
-      // 浏览器降级
+      // 浏览器降级：必须基于完整存储列表删除，避免只保存当前空间子集导致数据丢失
+      const all = loadFromStorage().filter((c) => c.id !== id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
     }
     conversations.value = conversations.value.filter((c) => c.id !== id);
-    saveToStorage();
   }
 
   async function moveConversation(id: string, targetWorkspaceId: string) {
