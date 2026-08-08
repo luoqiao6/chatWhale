@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import type { ThemeName, Conversation, Workspace } from "../types";
 import { THEME_META } from "../types";
 import WorkspaceSwitcher from "./WorkspaceSwitcher.vue";
@@ -33,6 +33,20 @@ const emit = defineEmits<{
 
 const themeNames: ThemeName[] = ["frost", "morning-dew", "aurora", "dusk", "deep-ocean"];
 const openMenuFor = ref<string | null>(null);
+
+function onDocumentClick(e: MouseEvent) {
+  const target = e.target as HTMLElement;
+  if (
+    openMenuFor.value &&
+    !target.closest(".conv-menu") &&
+    !target.closest(".conv-more")
+  ) {
+    openMenuFor.value = null;
+  }
+}
+
+onMounted(() => document.addEventListener("click", onDocumentClick));
+onBeforeUnmount(() => document.removeEventListener("click", onDocumentClick));
 </script>
 
 <template>
